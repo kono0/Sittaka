@@ -1,0 +1,2 @@
+# Talking.word_Cheating_tool
+相手にバレずに知ったかをできるよう助けるツール
