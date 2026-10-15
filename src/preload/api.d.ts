@@ -1,3 +1,11 @@
+export interface WordbookEntry {
+  word: string
+  reading?: string
+  meaning?: string
+  context: string
+  savedAt: string
+}
+
 declare global {
   interface Window {
     appInfo: { platform: string }
@@ -10,6 +18,24 @@ declare global {
     /** 発話から調べる候補の言葉を抜き出す */
     terms: {
       extract(text: string): Promise<{ text: string; reading?: string; reasons: string[] }[]>
+    }
+    settings: {
+      get(): Promise<{ hasSarashinaKey: boolean }>
+      setSarashinaKey(key: string | null): Promise<void>
+    }
+    /** Sarashina による絞り込みと意味の説明。キーがなければ使えない */
+    ai: {
+      /** キーがない・混んでいる・失敗したときは null（規則の結果をそのまま使う） */
+      refine(context: string[], utterance: string, candidates: string[]): Promise<{ text: string; reading: string }[] | null>
+      explain(
+        context: string[],
+        word: string
+      ): Promise<{ ok: true; value: { word: string; reading: string; meaning: string } } | { ok: false; error: string }>
+    }
+    wordbook: {
+      list(): Promise<WordbookEntry[]>
+      save(entry: WordbookEntry): Promise<void>
+      remove(word: string): Promise<void>
     }
     /** 全体ショートカット（Ctrl+Alt+数字） */
     hotkeys: {

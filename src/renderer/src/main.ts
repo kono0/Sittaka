@@ -64,10 +64,37 @@ $<HTMLDetailsElement>('log').addEventListener('toggle', () => (transcript.scroll
 
 window.hotkeys.onKeep((n) => {
   const w = board.recent()[n - 1]
-  if (w) {
-    board.keep(w.text, Date.now())
-    renderBoard()
+  if (w) keepWord(w.text)
+})
+
+// タブ（会話・単語帳・設定）の切り替え
+const tabs = [...document.querySelectorAll<HTMLButtonElement>('.tabs button')]
+for (const tab of tabs) {
+  tab.addEventListener('click', () => {
+    for (const t of tabs) t.classList.toggle('active', t === tab)
+    for (const v of document.querySelectorAll<HTMLElement>('.view')) v.hidden = v.dataset.view !== tab.dataset.view
+    if (tab.dataset.view === 'wordbook') void renderWordbook()
+    if (tab.dataset.view === 'settings') void renderSettings()
+  })
+}
+
+$<HTMLFormElement>('key-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const input = $<HTMLInputElement>('key-input')
+  if (!input.value.trim()) return
+  try {
+    await window.settings.setSarashinaKey(input.value)
+    input.value = ''
+    await renderSettings()
+  } catch (err) {
+    // IPC 越しのエラーは「Error invoking remote method ...: Error: 」が前に付くので外す
+    const msg = (err instanceof Error ? err.message : String(err)).replace(/^.*Error: /, '')
+    $<HTMLParagraphElement>('key-state').textContent = `保存できませんでした: ${msg}`
   }
+})
+$<HTMLButtonElement>('key-remove').addEventListener('click', async () => {
+  await window.settings.setSarashinaKey(null)
+  await renderSettings()
 })
 
 async function start(): Promise<void> {
@@ -151,15 +178,54 @@ function addLine(line: TranscriptLine): void {
   transcript.scrollTop = transcript.scrollHeight
   renderStats()
 
-  window.terms
-    .extract(line.text)
-    .then((terms) => {
-      if (terms.length === 0) return
-      board.add(terms, line.speaker, Date.now())
-      highlight(body, line.text, terms.map((t) => t.text))
-      renderBoard()
-    })
-    .catch((err) => console.error('言葉の抜き出しに失敗しました', err))
+  void findTerms(line, body)
+}
+
+/** 直近の会話（AI に渡す文脈）。話し手を付けて最大4発話 */
+function recentContext(): string[] {
+  return history.slice(-4).map((l) => `${SPEAKER_LABEL[l.speaker]}: ${l.text}`)
+}
+
+async function findTerms(line: TranscriptLine, body: HTMLElement): Promise<void> {
+  const context = recentContext()
+  try {
+    const candidates = await window.terms.extract(line.text)
+    // キーがあれば AI に絞り込ませる。だめなときは規則の結果をそのまま使う
+    const refined = line.text.length >= 6 ? await window.ai.refine(context.slice(0, -1), line.text, candidates.map((c) => c.text)) : null
+    const terms = refined ?? candidates
+    if (terms.length === 0) return
+    board.add(terms, line.speaker, Date.now(), context)
+    // AI が漢字を直した言葉は元の文と一致しないので、印は付けられるものだけ
+    const inText = terms.map((t) => t.text).filter((t) => line.text.includes(t))
+    if (inText.length) highlight(body, line.text, inText)
+    renderBoard()
+  } catch (err) {
+    console.error('言葉の抜き出しに失敗しました', err)
+  }
+}
+
+function keepWord(text: string): void {
+  if (!board.keep(text, Date.now())) return
+  const w = board.get(text)!
+  w.meaning = { state: 'loading' }
+  renderBoard()
+  const context = w.context.join('\n')
+  void window.wordbook.save({ word: text, reading: w.reading, context, savedAt: new Date().toISOString() })
+  window.ai.explain(w.context, text).then((res) => {
+    if (res.ok) {
+      w.meaning = { state: 'done', ...res.value, text: res.value.meaning }
+      void window.wordbook.save({
+        word: text,
+        reading: res.value.reading || w.reading,
+        meaning: res.value.word !== text ? `（${res.value.word}）${res.value.meaning}` : res.value.meaning,
+        context,
+        savedAt: new Date().toISOString()
+      })
+    } else {
+      w.meaning = { state: 'error', text: res.error }
+    }
+    renderBoard()
+  })
 }
 
 /** 会話ログの中で、抜き出した言葉に印を付ける */
@@ -176,12 +242,89 @@ function highlight(el: HTMLElement, text: string, words: string[]): void {
 }
 
 function renderBoard(): void {
-  keptEl.replaceChildren(...board.kept().map((w) => chip(w, null, () => board.unkeep(w.text))))
+  keptEl.replaceChildren(...board.kept().map(card))
   wordsEl.replaceChildren(
-    ...board.recent().map((w, i) =>
-      chip(w, i < HOTKEY_SLOTS ? i + 1 : null, () => board.keep(w.text, Date.now()))
-    )
+    ...board.recent().map((w, i) => chip(w, i < HOTKEY_SLOTS ? i + 1 : null, () => keepWord(w.text)))
   )
+}
+
+/** キープした言葉。意味が届いたら下に出す */
+function card(w: BoardWord): HTMLElement {
+  const el = document.createElement('div')
+  el.className = 'card'
+  const m = w.meaning
+  const word = document.createElement('span')
+  word.className = 'word'
+  word.textContent = m?.state === 'done' ? m.word : w.text
+  el.append(word)
+  const reading = m?.state === 'done' && m.reading ? m.reading : w.reading
+  if (reading) {
+    const r = document.createElement('span')
+    r.className = 'reading'
+    r.textContent = reading
+    el.append(r)
+  }
+  if (m) {
+    const meaning = document.createElement('span')
+    meaning.className = `meaning ${m.state === 'loading' ? 'pending' : m.state}`
+    meaning.textContent = m.state === 'loading' ? '意味を調べています…' : m.text
+    el.append(meaning)
+  }
+  const remove = document.createElement('button')
+  remove.className = 'remove'
+  remove.title = 'キープから外す（単語帳には残ります）'
+  remove.textContent = '×'
+  remove.addEventListener('click', () => {
+    board.unkeep(w.text)
+    renderBoard()
+  })
+  el.append(remove)
+  return el
+}
+
+async function renderWordbook(): Promise<void> {
+  const list = $<HTMLOListElement>('wordbook-list')
+  const entries = await window.wordbook.list()
+  list.replaceChildren(
+    ...entries.map((e) => {
+      const li = document.createElement('li')
+      const word = document.createElement('strong')
+      word.textContent = e.word
+      li.append(word)
+      if (e.reading) {
+        const r = document.createElement('span')
+        r.className = 'reading note'
+        r.textContent = ` ${e.reading}`
+        li.append(r)
+      }
+      const meaning = document.createElement('div')
+      meaning.textContent = e.meaning ?? '（意味はまだありません）'
+      const ctx = document.createElement('span')
+      ctx.className = 'ctx'
+      // 保存した会話のうち、その言葉が出てくる発言を見せる
+      const lines = e.context.split('\n')
+      const line = lines.find((l) => l.includes(e.word)) ?? lines[lines.length - 1] ?? ''
+      ctx.textContent = `${new Date(e.savedAt).toLocaleString('ja-JP')} ・ ${line}`
+      const remove = document.createElement('button')
+      remove.className = 'remove'
+      remove.title = '単語帳から削除'
+      remove.textContent = '×'
+      remove.addEventListener('click', async () => {
+        await window.wordbook.remove(e.word)
+        await renderWordbook()
+      })
+      li.append(meaning, ctx, remove)
+      return li
+    })
+  )
+}
+
+async function renderSettings(): Promise<void> {
+  const { hasSarashinaKey } = await window.settings.get()
+  $<HTMLParagraphElement>('key-state').textContent = hasSarashinaKey
+    ? 'キーは保存済みです。AI での絞り込みと意味の表示が有効になっています。'
+    : 'キーが未設定です。今は規則だけで言葉を選んでいて、意味は表示されません。'
+  $<HTMLButtonElement>('key-remove').hidden = !hasSarashinaKey
 }
 
 function chip(w: BoardWord, num: number | null, onClick: () => void): HTMLButtonElement {

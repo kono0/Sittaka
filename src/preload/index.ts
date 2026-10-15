@@ -23,3 +23,20 @@ contextBridge.exposeInMainWorld('hotkeys', {
     ipcRenderer.on('hotkey:keep', (_e, n: number) => handler(n))
   }
 })
+
+contextBridge.exposeInMainWorld('settings', {
+  get: () => ipcRenderer.invoke('settings:get'),
+  setSarashinaKey: (key: string | null) => ipcRenderer.invoke('settings:setSarashinaKey', key)
+})
+
+contextBridge.exposeInMainWorld('ai', {
+  refine: (context: string[], utterance: string, candidates: string[]) =>
+    ipcRenderer.invoke('ai:refine', context, utterance, candidates),
+  explain: (context: string[], word: string) => ipcRenderer.invoke('ai:explain', context, word)
+})
+
+contextBridge.exposeInMainWorld('wordbook', {
+  list: () => ipcRenderer.invoke('wordbook:list'),
+  save: (entry: unknown) => ipcRenderer.invoke('wordbook:save', entry),
+  remove: (word: string) => ipcRenderer.invoke('wordbook:remove', word)
+})

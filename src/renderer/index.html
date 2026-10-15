@@ -14,16 +14,38 @@
       <select id="engine"></select>
       <button id="toggle">開始</button>
     </header>
+    <nav class="tabs">
+      <button data-view="board" class="active">会話</button>
+      <button data-view="wordbook">単語帳</button>
+      <button data-view="settings">設定</button>
+    </nav>
     <section class="meters">
       <label>相手 <meter id="level-other" min="0" max="0.3" value="0"></meter></label>
       <label>自分 <meter id="level-self" min="0" max="0.3" value="0"></meter></label>
     </section>
     <p id="status">エンジンを選んで「開始」を押してください。</p>
-    <section class="board">
+    <section class="view board" data-view="board">
       <h2>キープ</h2>
       <div id="kept" class="chips" data-empty="気になる言葉を押すか Ctrl+Alt+数字 でここに残せます"></div>
       <h2>聞こえた言葉</h2>
       <div id="words" class="chips" data-empty="会話の中の専門用語やカタカナ語がここに流れてきます"></div>
+    </section>
+    <section class="view wordbook" data-view="wordbook" hidden>
+      <ol id="wordbook-list" data-empty="キープした言葉が、意味と一緒にここに残ります"></ol>
+    </section>
+    <section class="view settings" data-view="settings" hidden>
+      <h2>Sarashina の API キー</h2>
+      <p id="key-state" class="note"></p>
+      <form id="key-form">
+        <input id="key-input" type="password" autocomplete="off" placeholder="キーを貼り付け" />
+        <button type="submit">保存</button>
+      </form>
+      <button id="key-remove" type="button">キーを削除</button>
+      <p class="note">
+        キーはこの PC の中に暗号化して保存します。キーを入れると、聞き取った文章と調べる言葉を
+        Sarashina に送って、言葉の絞り込み・漢字の直し・意味の説明をさせます。
+        Sarashina の無料版では、送った内容が AI の学習に使われます。音声そのものは送りません。
+      </p>
     </section>
     <details id="log">
       <summary>会話ログ</summary>

@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, screen, session } from 'electron'
+import { registerAiIpc } from './ai/ipc'
 import { registerAsrIpc } from './asr/service'
 import { registerTermsIpc } from './terms/ipc'
 
@@ -70,6 +71,7 @@ app.whenReady().then(() => {
   allowAudioCapture()
   registerAsrIpc()
   registerTermsIpc()
+  registerAiIpc()
   registerHotkeys(createPanel())
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createPanel()

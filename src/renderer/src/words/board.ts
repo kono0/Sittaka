@@ -9,6 +9,9 @@ export interface BoardWord {
   text: string
   reading?: string
   speaker: Speaker
+  /** その言葉が出たときの会話（意味を調べるときに AI に渡す） */
+  context: string[]
+  meaning?: { state: 'loading' } | { state: 'done'; word: string; reading: string; text: string } | { state: 'error'; text: string }
   /** 会話の中で出てきた回数 */
   count: number
   lastSeen: number
@@ -21,7 +24,7 @@ export class WordBoard {
 
   constructor(private readonly maxRecent = 40) {}
 
-  add(terms: TermInput[], speaker: Speaker, now: number): void {
+  add(terms: TermInput[], speaker: Speaker, now: number, context: string[] = []): void {
     for (const t of terms) {
       const w = this.words.get(t.text)
       if (w) {
@@ -29,8 +32,9 @@ export class WordBoard {
         w.count++
         w.lastSeen = now
         w.speaker = speaker
+        w.context = context
       } else {
-        this.words.set(t.text, { ...t, speaker, count: 1, lastSeen: now, keptAt: null })
+        this.words.set(t.text, { ...t, speaker, context, count: 1, lastSeen: now, keptAt: null })
       }
     }
     this.trim()
@@ -46,9 +50,16 @@ export class WordBoard {
     return [...this.words.values()].filter((w) => w.keptAt !== null).sort((a, b) => a.keptAt! - b.keptAt!)
   }
 
-  keep(text: string, now: number): void {
+  get(text: string): BoardWord | undefined {
+    return this.words.get(text)
+  }
+
+  /** キープしたら true（すでにキープ済みなら false） */
+  keep(text: string, now: number): boolean {
     const w = this.words.get(text)
-    if (w && w.keptAt === null) w.keptAt = now
+    if (!w || w.keptAt !== null) return false
+    w.keptAt = now
+    return true
   }
 
   unkeep(text: string): void {
