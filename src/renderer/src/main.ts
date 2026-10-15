@@ -3,6 +3,7 @@ import { hasWebGPU, LocalWhisperTranscriber, whisperPresets } from './asr/local-
 import { TranscriptionQueue, type TranscriptLine } from './asr/queue'
 import { ReazonSpeechTranscriber } from './asr/reazonspeech'
 import type { Transcriber } from './asr/transcriber'
+import { WordBoard, type BoardWord } from './words/board'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const engineSelect = $<HTMLSelectElement>('engine')
@@ -10,6 +11,8 @@ const toggle = $<HTMLButtonElement>('toggle')
 const status = $<HTMLParagraphElement>('status')
 const transcript = $<HTMLOListElement>('transcript')
 const stats = $<HTMLElement>('stats')
+const keptEl = $<HTMLDivElement>('kept')
+const wordsEl = $<HTMLDivElement>('words')
 const meters: Record<Speaker, HTMLMeterElement> = {
   other: $('level-other'),
   self: $('level-self')
@@ -23,6 +26,9 @@ let capture: CallCapture | null = null
 let queue: TranscriptionQueue | null = null
 let running = false
 const history: TranscriptLine[] = []
+const board = new WordBoard()
+/** ショートカットで選べるのは、言葉の一覧の上から9個まで */
+const HOTKEY_SLOTS = 9
 
 interface EngineOption {
   id: string
@@ -53,12 +59,25 @@ try {
 
 toggle.addEventListener('click', () => (running ? stop() : start()))
 
+// 会話ログを開いたときは最新の行を見せる
+$<HTMLDetailsElement>('log').addEventListener('toggle', () => (transcript.scrollTop = transcript.scrollHeight))
+
+window.hotkeys.onKeep((n) => {
+  const w = board.recent()[n - 1]
+  if (w) {
+    board.keep(w.text, Date.now())
+    renderBoard()
+  }
+})
+
 async function start(): Promise<void> {
   running = true
   toggle.textContent = '停止'
   engineSelect.disabled = true
   history.length = 0
   transcript.replaceChildren()
+  board.clear()
+  renderBoard()
   renderStats()
 
   try {
@@ -122,13 +141,75 @@ function addLine(line: TranscriptLine): void {
   const who = document.createElement('span')
   who.className = 'who'
   who.textContent = SPEAKER_LABEL[line.speaker]
+  const body = document.createElement('span')
+  body.textContent = line.text
   const timing = document.createElement('span')
   timing.className = 'timing'
   timing.textContent = `遅れ ${sec(line.latencyMs)} ・ 処理 ${sec(line.inferenceMs)}（音声 ${sec(line.audioMs)}）`
-  li.append(who, line.text, timing)
+  li.append(who, body, timing)
   transcript.append(li)
   transcript.scrollTop = transcript.scrollHeight
   renderStats()
+
+  window.terms
+    .extract(line.text)
+    .then((terms) => {
+      if (terms.length === 0) return
+      board.add(terms, line.speaker, Date.now())
+      highlight(body, line.text, terms.map((t) => t.text))
+      renderBoard()
+    })
+    .catch((err) => console.error('言葉の抜き出しに失敗しました', err))
+}
+
+/** 会話ログの中で、抜き出した言葉に印を付ける */
+function highlight(el: HTMLElement, text: string, words: string[]): void {
+  const pattern = new RegExp(`(${words.map(escapeRegExp).join('|')})`)
+  el.replaceChildren(
+    ...text.split(pattern).map((part, i) => {
+      if (i % 2 === 0) return document.createTextNode(part)
+      const mark = document.createElement('mark')
+      mark.textContent = part
+      return mark
+    })
+  )
+}
+
+function renderBoard(): void {
+  keptEl.replaceChildren(...board.kept().map((w) => chip(w, null, () => board.unkeep(w.text))))
+  wordsEl.replaceChildren(
+    ...board.recent().map((w, i) =>
+      chip(w, i < HOTKEY_SLOTS ? i + 1 : null, () => board.keep(w.text, Date.now()))
+    )
+  )
+}
+
+function chip(w: BoardWord, num: number | null, onClick: () => void): HTMLButtonElement {
+  const b = document.createElement('button')
+  b.className = `chip ${w.speaker}`
+  b.title = `${SPEAKER_LABEL[w.speaker]}が言った言葉${w.count > 1 ? `（${w.count}回）` : ''}`
+  if (num !== null) {
+    const n = document.createElement('span')
+    n.className = 'num'
+    n.textContent = String(num)
+    b.append(n)
+  }
+  b.append(w.text)
+  if (w.reading) {
+    const r = document.createElement('span')
+    r.className = 'reading'
+    r.textContent = w.reading
+    b.append(r)
+  }
+  b.addEventListener('click', () => {
+    onClick()
+    renderBoard()
+  })
+  return b
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function renderStats(): void {
