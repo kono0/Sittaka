@@ -40,3 +40,7 @@ contextBridge.exposeInMainWorld('wordbook', {
   save: (entry: unknown) => ipcRenderer.invoke('wordbook:save', entry),
   remove: (word: string) => ipcRenderer.invoke('wordbook:remove', word)
 })
+
+contextBridge.exposeInMainWorld('panel', {
+  setWide: (wide: boolean) => ipcRenderer.invoke('panel:setWide', wide)
+})

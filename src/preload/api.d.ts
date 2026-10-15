@@ -6,6 +6,22 @@ export interface WordbookEntry {
   savedAt: string
 }
 
+// main プロセス側（src/main/terms/ipc.ts・src/main/ai/ipc.ts）と同じ形
+export interface Extracted {
+  /** 規則で選んだ言葉 */
+  terms: { text: string; reading?: string; reasons: string[] }[]
+  /** ふるいにかける前の名詞のまとまりすべて（AI に渡す候補） */
+  nouns: string[]
+  /** 形態素解析の結果 */
+  tokens: { surface: string; pos: string; known: boolean }[]
+}
+
+export type RefineResult =
+  | { status: 'no-key' }
+  | { status: 'busy'; waitMs: number }
+  | { status: 'ok'; terms: { text: string; reading: string }[]; prompt: string; raw: string; ms: number }
+  | { status: 'error'; error: string; prompt: string; raw: string; ms: number }
+
 declare global {
   interface Window {
     appInfo: { platform: string }
@@ -17,10 +33,7 @@ declare global {
     }
     /** 発話から調べる候補の言葉を抜き出す */
     terms: {
-      /** terms: 規則で選んだ言葉 / nouns: ふるいにかける前の名詞すべて（AI に渡す） */
-      extract(
-        text: string
-      ): Promise<{ terms: { text: string; reading?: string; reasons: string[] }[]; nouns: string[] }>
+      extract(text: string): Promise<Extracted>
     }
     settings: {
       get(): Promise<{ hasSarashinaKey: boolean }>
@@ -28,13 +41,13 @@ declare global {
     }
     /** Sarashina による絞り込みと意味の説明。キーがなければ使えない */
     ai: {
-      /** キーがない・混んでいるときは null（規則の結果をそのまま使う） */
+      /** キーがない・混んでいるときは AI を通さない（規則の結果を使う） */
       refine(
         context: string[],
         utterance: string,
         candidates: string[],
         amount: 'few' | 'normal' | 'many'
-      ): Promise<{ ok: true; value: { text: string; reading: string }[] } | { ok: false; error: string } | null>
+      ): Promise<RefineResult>
       explain(
         context: string[],
         word: string
@@ -44,6 +57,10 @@ declare global {
       list(): Promise<WordbookEntry[]>
       save(entry: WordbookEntry): Promise<void>
       remove(word: string): Promise<void>
+    }
+    /** パネルの幅を広げる（検証タブ用） */
+    panel: {
+      setWide(wide: boolean): Promise<void>
     }
     /** 全体ショートカット（Ctrl+Alt+数字） */
     hotkeys: {

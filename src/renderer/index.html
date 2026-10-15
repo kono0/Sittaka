@@ -17,6 +17,7 @@
     <nav class="tabs">
       <button data-view="board" class="active">会話</button>
       <button data-view="wordbook">単語帳</button>
+      <button data-view="inspect">検証</button>
       <button data-view="settings">設定</button>
     </nav>
     <section class="meters">
@@ -33,6 +34,7 @@
     <section class="view wordbook" data-view="wordbook" hidden>
       <ol id="wordbook-list" data-empty="キープした言葉が、意味と一緒にここに残ります"></ol>
     </section>
+    <section class="view inspect" data-view="inspect" id="inspect" hidden></section>
     <section class="view settings" data-view="settings" hidden>
       <h2>Sarashina の API キー</h2>
       <p id="key-state" class="note"></p>

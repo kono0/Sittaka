@@ -2,11 +2,17 @@ import { join } from 'node:path'
 import { app, ipcMain, net } from 'electron'
 import { getSarashinaKey, setSarashinaKey } from '../settings'
 import { Wordbook, type WordbookEntry } from '../wordbook'
-import { describeError, SarashinaClient } from './chat'
+import { describeError, SarashinaClient, type ChatTrace } from './chat'
 import { explainTerm } from './explain'
-import { refineTerms, type Amount } from './refine'
+import { refineTerms, type Amount, type RefinedTerm } from './refine'
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string }
+
+export type RefineResult =
+  | { status: 'no-key' }
+  | { status: 'busy'; waitMs: number }
+  | { status: 'ok'; terms: RefinedTerm[]; prompt: string; raw: string; ms: number }
+  | { status: 'error'; error: string; prompt: string; raw: string; ms: number }
 
 /**
  * AI と設定と単語帳の窓口。API キーは main プロセスの中だけで扱い、画面側には渡さない。
@@ -27,20 +33,30 @@ export function registerAiIpc(): void {
     client = null
   })
 
+  /**
+   * 結果には検証用に、AI に送った文と返ってきたそのままの文字列も付ける。
+   * キーがない・混んでいるときは AI を通さない（画面側は規則の結果を使う）。
+   */
   ipcMain.handle(
     'ai:refine',
-    async (_e, context: string[], utterance: string, candidates: string[], amount: Amount) => {
+    async (_e, context: string[], utterance: string, candidates: string[], amount: Amount): Promise<RefineResult> => {
       const c = getClient()
-      if (!c) return null
-      // 1分60回の上限に近づいて待たされるなら、AI を通さず規則の結果をそのまま使う
-      if (c.waitFor('sarashina3-nano') > 3000) return null
+      if (!c) return { status: 'no-key' }
+      // 1分60回の上限に近づいて待たされるなら、AI を通さない
+      const waitMs = c.waitFor('sarashina3-nano')
+      if (waitMs > 3000) return { status: 'busy', waitMs }
+      const trace: ChatTrace & { prompt?: string } = {}
       try {
-        return {
-          ok: true,
-          value: await refineTerms(c, context, utterance, candidates, amount)
-        } satisfies Result<unknown>
+        const terms = await refineTerms(c, context, utterance, candidates, amount, trace)
+        return { status: 'ok', terms, prompt: trace.prompt ?? '', raw: trace.raw ?? '', ms: trace.ms ?? 0 }
       } catch (err) {
-        return { ok: false, error: describeError(err) } satisfies Result<unknown>
+        return {
+          status: 'error',
+          error: describeError(err),
+          prompt: trace.prompt ?? '',
+          raw: trace.raw ?? '',
+          ms: trace.ms ?? 0
+        }
       }
     }
   )

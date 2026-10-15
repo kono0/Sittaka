@@ -3,7 +3,9 @@ import { hasWebGPU, LocalWhisperTranscriber, whisperPresets } from './asr/local-
 import { TranscriptionQueue, type TranscriptLine } from './asr/queue'
 import { ReazonSpeechTranscriber } from './asr/reazonspeech'
 import type { Transcriber } from './asr/transcriber'
+import { Inspector } from './inspect/view'
 import { WordBoard, type BoardWord } from './words/board'
+import { findTerms, type Amount } from './words/pipeline'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const engineSelect = $<HTMLSelectElement>('engine')
@@ -27,6 +29,8 @@ let queue: TranscriptionQueue | null = null
 let running = false
 const history: TranscriptLine[] = []
 const board = new WordBoard()
+// 検証タブ。手入力の文は会話の流れとは別に、直前の会話だけを文脈にして試す
+const inspector = new Inspector($('inspect'), (text) => findTerms(text, 'other', recentContext(), amount, 'manual'))
 /** ショートカットで選べるのは、言葉の一覧の上から9個まで */
 const HOTKEY_SLOTS = 9
 
@@ -75,10 +79,10 @@ for (const tab of tabs) {
     for (const v of document.querySelectorAll<HTMLElement>('.view')) v.hidden = v.dataset.view !== tab.dataset.view
     if (tab.dataset.view === 'wordbook') void renderWordbook()
     if (tab.dataset.view === 'settings') void renderSettings()
+    inspector.setVisible(tab.dataset.view === 'inspect')
   })
 }
 
-type Amount = 'few' | 'normal' | 'many'
 const amountSelect = $<HTMLSelectElement>('amount')
 let amount: Amount = 'normal'
 try {
@@ -199,7 +203,7 @@ function addLine(line: TranscriptLine): void {
   transcript.scrollTop = transcript.scrollHeight
   renderStats()
 
-  void findTerms(line, body)
+  void findTermsForLine(line, body)
 }
 
 /** 直近の会話（AI に渡す文脈）。話し手を付けて最大4発話 */
@@ -207,24 +211,19 @@ function recentContext(): string[] {
   return history.slice(-4).map((l) => `${SPEAKER_LABEL[l.speaker]}: ${l.text}`)
 }
 
-async function findTerms(line: TranscriptLine, body: HTMLElement): Promise<void> {
+async function findTermsForLine(line: TranscriptLine, body: HTMLElement): Promise<void> {
   const context = recentContext()
-  try {
-    const { terms: ruleTerms, nouns } = await window.terms.extract(line.text)
-    // キーがあれば、規則でふるう前の名詞をすべて AI に見せて選ばせる。
-    // キーがない・混んでいる・失敗したときは規則の結果をそのまま使う
-    const refined = nouns.length > 0 ? await window.ai.refine(context.slice(0, -1), line.text, nouns, amount) : null
-    if (refined && !refined.ok) showAiError(refined.error)
-    const terms = refined?.ok ? refined.value : ruleTerms
-    if (terms.length === 0) return
-    board.add(terms, line.speaker, Date.now(), context)
-    // AI が漢字を直した言葉は元の文と一致しないので、印は付けられるものだけ
-    const inText = terms.map((t) => t.text).filter((t) => line.text.includes(t))
-    if (inText.length) highlight(body, line.text, inText)
-    renderBoard()
-  } catch (err) {
-    console.error('言葉の抜き出しに失敗しました', err)
-  }
+  const { trace, terms } = await findTerms(line.text, line.speaker, context.slice(0, -1), amount)
+  trace.asr = { latencyMs: line.latencyMs, inferenceMs: line.inferenceMs, audioMs: line.audioMs }
+  inspector.add(trace)
+  if (trace.ai?.status === 'error') showAiError(trace.ai.error)
+  if (trace.error) console.error('言葉の抜き出しに失敗しました', trace.error)
+  if (terms.length === 0) return
+  board.add(terms, line.speaker, Date.now(), context)
+  // AI が漢字を直した言葉は元の文と一致しないので、印は付けられるものだけ
+  const inText = terms.map((t) => t.text).filter((t) => line.text.includes(t))
+  if (inText.length) highlight(body, line.text, inText)
+  renderBoard()
 }
 
 /** AI のエラーは、同じものを何度も出さずに状態欄へ一度だけ出す */

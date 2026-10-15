@@ -1,4 +1,4 @@
-import type { ChatClient } from './chat'
+import type { ChatClient, ChatTrace } from './chat'
 
 export interface RefinedTerm {
   text: string
@@ -58,13 +58,15 @@ export async function refineTerms(
   context: string[],
   utterance: string,
   candidates: string[],
-  amount: Amount = 'normal'
+  amount: Amount = 'normal',
+  trace?: ChatTrace & { prompt?: string }
 ): Promise<RefinedTerm[]> {
   const user = [
     context.length ? `直前の会話:\n${context.join('\n')}` : '直前の会話: なし',
     `今の発言: ${utterance}`,
     `候補: ${candidates.length ? candidates.join('、') : 'なし'}`
   ].join('\n\n')
+  if (trace) trace.prompt = user
   const out = await client.json<{ terms?: RefinedTerm[] }>(
     'sarashina3-nano',
     [
@@ -72,7 +74,8 @@ export async function refineTerms(
       { role: 'user', content: user }
     ],
     SCHEMA,
-    600
+    600,
+    trace
   )
   const seen = new Set<string>()
   return (out.terms ?? [])

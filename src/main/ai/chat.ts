@@ -8,9 +8,18 @@ export interface ChatMessage {
   content: string
 }
 
+/** 検証用に、AI とのやりとりの中身を残す入れ物 */
+export interface ChatTrace {
+  model?: Model
+  /** AI が返したそのままの文字列 */
+  raw?: string
+  /** 返事が来るまでの時間（間隔待ちは含まない） */
+  ms?: number
+}
+
 export interface ChatClient {
   /** JSON Schema に沿った JSON を返させて、パース済みの値を返す */
-  json<T>(model: Model, messages: ChatMessage[], schema: object, maxTokens: number): Promise<T>
+  json<T>(model: Model, messages: ChatMessage[], schema: object, maxTokens: number, trace?: ChatTrace): Promise<T>
 }
 
 export class ApiError extends Error {
@@ -42,13 +51,21 @@ export class SarashinaClient implements ChatClient {
     return Math.max(0, this.nextSlot[model] - this.now())
   }
 
-  async json<T>(model: Model, messages: ChatMessage[], schema: object, maxTokens: number): Promise<T> {
+  async json<T>(
+    model: Model,
+    messages: ChatMessage[],
+    schema: object,
+    maxTokens: number,
+    trace: ChatTrace = {}
+  ): Promise<T> {
     // 上限を超えないよう、モデルごとに呼び出しの間隔をあける
     const interval = 60000 / RPM[model]
     const slot = Math.max(this.now(), this.nextSlot[model])
     this.nextSlot[model] = slot + interval
     if (slot > this.now()) await this.sleep(slot - this.now())
 
+    trace.model = model
+    const started = this.now()
     const res = await this.fetchImpl('https://api.sarashina.ai/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
@@ -61,16 +78,21 @@ export class SarashinaClient implements ChatClient {
       })
     })
     if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      trace.raw = text
+      trace.ms = this.now() - started
       let message = `HTTP ${res.status}`
       try {
-        message = ((await res.json()) as { message?: string }).message ?? message
+        message = (JSON.parse(text) as { message?: string }).message ?? message
       } catch {
         // 本文がなくてもステータスで分かる
       }
       throw new ApiError(res.status, message)
     }
     const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[] }
-    return parseJson<T>(body.choices?.[0]?.message?.content ?? '')
+    trace.raw = body.choices?.[0]?.message?.content ?? ''
+    trace.ms = this.now() - started
+    return parseJson<T>(trace.raw)
   }
 }
 

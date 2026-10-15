@@ -1,10 +1,11 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, desktopCapturer, globalShortcut, screen, session } from 'electron'
+import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, screen, session } from 'electron'
 import { registerAiIpc } from './ai/ipc'
 import { registerAsrIpc } from './asr/service'
 import { registerTermsIpc } from './terms/ipc'
 
 const PANEL_WIDTH = 380
+const WIDE_PANEL_WIDTH = 760
 
 function createPanel(): BrowserWindow {
   const { workArea } = screen.getPrimaryDisplay()
@@ -29,6 +30,13 @@ function createPanel(): BrowserWindow {
   win.setAlwaysOnTop(true, 'screen-saver')
   // 画面共有や録画にこのパネルが映らないようにする（Windows 10 2004 以降・macOS）
   win.setContentProtection(true)
+
+  // 検証タブを開いている間だけ幅を広げる。右端はそろえたまま左に伸ばす
+  ipcMain.handle('panel:setWide', (_e, wide: boolean) => {
+    const b = win.getBounds()
+    const width = wide ? Math.max(b.width, WIDE_PANEL_WIDTH) : PANEL_WIDTH
+    win.setBounds({ x: b.x + b.width - width, y: b.y, width, height: b.height })
+  })
 
   if (process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
