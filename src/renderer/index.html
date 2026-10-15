@@ -19,8 +19,17 @@
       <label>自分 <meter id="level-self" min="0" max="0.3" value="0"></meter></label>
     </section>
     <p id="status">エンジンを選んで「開始」を押してください。</p>
-    <ol id="transcript"></ol>
-    <footer id="stats"></footer>
+    <section class="board">
+      <h2>キープ</h2>
+      <div id="kept" class="chips" data-empty="気になる言葉を押すか Ctrl+Alt+数字 でここに残せます"></div>
+      <h2>聞こえた言葉</h2>
+      <div id="words" class="chips" data-empty="会話の中の専門用語やカタカナ語がここに流れてきます"></div>
+    </section>
+    <details id="log">
+      <summary>会話ログ</summary>
+      <ol id="transcript"></ol>
+      <footer id="stats"></footer>
+    </details>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
