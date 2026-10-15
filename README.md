@@ -36,6 +36,8 @@
    npm run dev
    ```
 
+   `npm run dev` で「Electron uninstall」と出たときは、`node node_modules/electron/install.js` を一度実行してから、もう一度 `npm run dev` してください。
+
 4. 右端に出たパネルでモデルを選び、「開始」を押す
 5. 通話アプリや YouTube などで音声を流し、パネルに文字が出るか確かめる
 
