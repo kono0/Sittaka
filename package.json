@@ -1,0 +1,29 @@
+{
+  "name": "talking-word-lookup",
+  "version": "0.1.0",
+  "private": true,
+  "description": "通話中の会話を文字起こしし、知らない単語をこっそり調べるデスクトップアプリ",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
+    "sherpa-onnx-node": "^1.13.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "electron": "44.7.2",
+    "electron-vite": "^6.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.0"
+  },
+  "allowScripts": {
+    "electron@44.7.2": true
+  }
+}

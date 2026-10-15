@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; worker-src 'self' blob:; connect-src 'self' blob: data: https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'"
+    />
+    <title>Talking Word</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <header>
+      <select id="engine"></select>
+      <button id="toggle">開始</button>
+    </header>
+    <section class="meters">
+      <label>相手 <meter id="level-other" min="0" max="0.3" value="0"></meter></label>
+      <label>自分 <meter id="level-self" min="0" max="0.3" value="0"></meter></label>
+    </section>
+    <p id="status">エンジンを選んで「開始」を押してください。</p>
+    <ol id="transcript"></ol>
+    <footer id="stats"></footer>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
