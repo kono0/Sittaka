@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { net } from 'electron'
-import { MODEL_ARCHIVE_ROOT, MODEL_ARCHIVE_URL, MODEL_FILES, MODEL_ID } from './model-files'
+import { MODEL_ARCHIVE_ROOT, MODEL_ARCHIVE_URL, MODEL_FILE_BASE_URL, MODEL_FILES, MODEL_ID } from './model-files'
 
 export interface ModelProgress {
   percent: number | null
@@ -19,24 +19,42 @@ export async function ensureModel(baseDir: string, onProgress: (p: ModelProgress
   if (files.every((f) => existsSync(join(dir, f)))) return dir
 
   await mkdir(baseDir, { recursive: true })
-  const archive = join(baseDir, `${MODEL_ID}.tar.bz2.part`)
   const tmp = join(baseDir, `${MODEL_ID}.tmp`)
-
   try {
-    await download(MODEL_ARCHIVE_URL, archive, onProgress)
-
-    onProgress({ percent: null, message: 'モデルを展開しています…' })
     await rm(tmp, { recursive: true, force: true })
     await mkdir(tmp, { recursive: true })
-    await untar(archive, tmp, files.map((f) => `${MODEL_ARCHIVE_ROOT}/${f}`))
-
+    try {
+      await downloadFiles(files, tmp, onProgress)
+    } catch (err) {
+      console.warn('個別ダウンロードに失敗したのでアーカイブから取ります:', err)
+      await rm(tmp, { recursive: true, force: true })
+      await mkdir(tmp, { recursive: true })
+      await downloadArchive(files, tmp, onProgress)
+    }
     await rm(dir, { recursive: true, force: true })
-    await rename(join(tmp, MODEL_ARCHIVE_ROOT), dir)
+    await rename(tmp, dir)
     return dir
   } finally {
-    await rm(archive, { force: true })
     await rm(tmp, { recursive: true, force: true })
   }
+}
+
+async function downloadFiles(files: string[], destDir: string, onProgress: (p: ModelProgress) => void): Promise<void> {
+  for (const [i, f] of files.entries()) {
+    await download(`${MODEL_FILE_BASE_URL}/${f}`, join(destDir, f), (p) =>
+      onProgress({ ...p, message: `${p.message}（${i + 1}/${files.length}）` })
+    )
+  }
+}
+
+async function downloadArchive(files: string[], destDir: string, onProgress: (p: ModelProgress) => void): Promise<void> {
+  const archive = join(destDir, 'model.tar.bz2')
+  await download(MODEL_ARCHIVE_URL, archive, onProgress)
+  onProgress({ percent: null, message: 'モデルを展開しています…' })
+  await untar(archive, destDir, files.map((f) => `${MODEL_ARCHIVE_ROOT}/${f}`))
+  await rm(archive, { force: true })
+  for (const f of files) await rename(join(destDir, MODEL_ARCHIVE_ROOT, f), join(destDir, f))
+  await rm(join(destDir, MODEL_ARCHIVE_ROOT), { recursive: true, force: true })
 }
 
 async function download(url: string, dest: string, onProgress: (p: ModelProgress) => void): Promise<void> {

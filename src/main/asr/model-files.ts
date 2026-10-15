@@ -8,8 +8,10 @@ export const MODEL_FILES = {
   tokens: 'tokens.txt'
 } as const
 
-// sherpa-onnx が配布しているアーカイブ。fp32 版も入っていて大きい（約700MB）ので、
-// 公開版では int8 の4ファイルだけを別に配布する予定。
+// 配布元（Hugging Face）から int8 の4ファイルだけを個別に取る（合計 約160MB）
+export const MODEL_FILE_BASE_URL = 'https://huggingface.co/reazon-research/reazonspeech-k2-v2/resolve/main'
+
+// 個別に取れなかったときの予備。sherpa-onnx のアーカイブで、使わない fp32 版も入っていて約700MBある。
 export const MODEL_ARCHIVE_URL =
   'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-ja-reazonspeech-2024-08-01.tar.bz2'
 export const MODEL_ARCHIVE_ROOT = 'sherpa-onnx-zipformer-ja-reazonspeech-2024-08-01'
