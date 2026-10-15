@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, desktopCapturer, screen, session } from 'electron'
+import { registerAsrIpc } from './asr/service'
 
 const PANEL_WIDTH = 380
 
@@ -50,6 +51,7 @@ function allowAudioCapture(): void {
 
 app.whenReady().then(() => {
   allowAudioCapture()
+  registerAsrIpc()
   createPanel()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createPanel()

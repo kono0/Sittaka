@@ -1,6 +1,7 @@
 import { CallCapture, type Speaker } from './audio/capture'
 import { hasWebGPU, LocalWhisperTranscriber, whisperPresets } from './asr/local-whisper'
 import { TranscriptionQueue, type TranscriptLine } from './asr/queue'
+import { ReazonSpeechTranscriber } from './asr/reazonspeech'
 import type { Transcriber } from './asr/transcriber'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -23,10 +24,29 @@ let queue: TranscriptionQueue | null = null
 let running = false
 const history: TranscriptLine[] = []
 
-for (const p of whisperPresets) engineSelect.add(new Option(p.label, p.id))
+interface EngineOption {
+  id: string
+  label: string
+  create(): Promise<Transcriber>
+}
+
+const engines: EngineOption[] = [
+  {
+    id: 'reazon',
+    label: 'ReazonSpeech（日本語専用・おすすめ）',
+    create: async () => new ReazonSpeechTranscriber()
+  },
+  ...whisperPresets.map((p) => ({
+    id: p.id,
+    label: p.label,
+    create: async () => new LocalWhisperTranscriber(p, (await hasWebGPU()) ? 'webgpu' : 'wasm')
+  }))
+]
+
+for (const e of engines) engineSelect.add(new Option(e.label, e.id))
 try {
   const saved = localStorage.getItem(ENGINE_KEY)
-  if (saved && whisperPresets.some((p) => p.id === saved)) engineSelect.value = saved
+  if (saved && engines.some((e) => e.id === saved)) engineSelect.value = saved
 } catch {
   // 保存できない環境でも既定値で動く
 }
@@ -42,9 +62,9 @@ async function start(): Promise<void> {
   renderStats()
 
   try {
-    const preset = whisperPresets.find((p) => p.id === engineSelect.value)!
+    const choice = engines.find((e) => e.id === engineSelect.value)!
     try {
-      localStorage.setItem(ENGINE_KEY, preset.id)
+      localStorage.setItem(ENGINE_KEY, choice.id)
     } catch {
       // 無視
     }
@@ -59,8 +79,7 @@ async function start(): Promise<void> {
     })
     await capture.start()
 
-    const device = (await hasWebGPU()) ? 'webgpu' : 'wasm'
-    engine = new LocalWhisperTranscriber(preset, device)
+    engine = await choice.create()
     status.textContent = `${engine.label} を準備しています…（初回はダウンロードに時間がかかります）`
     try {
       await engine.load((p) => {

@@ -2,7 +2,17 @@ import { resolve } from 'node:path'
 import { defineConfig } from 'electron-vite'
 
 export default defineConfig({
-  main: {},
+  main: {
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          // 文字起こしは utilityProcess で別に動かす
+          'asr-worker': resolve(__dirname, 'src/main/asr/worker.ts')
+        }
+      }
+    }
+  },
   preload: {},
   renderer: {
     root: resolve(__dirname, 'src/renderer'),
