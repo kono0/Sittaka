@@ -78,6 +78,25 @@ for (const tab of tabs) {
   })
 }
 
+type Amount = 'few' | 'normal' | 'many'
+const amountSelect = $<HTMLSelectElement>('amount')
+let amount: Amount = 'normal'
+try {
+  const saved = localStorage.getItem('amount')
+  if (saved === 'few' || saved === 'normal' || saved === 'many') amount = saved
+} catch {
+  // 保存できない環境でも既定値で動く
+}
+amountSelect.value = amount
+amountSelect.addEventListener('change', () => {
+  amount = amountSelect.value as Amount
+  try {
+    localStorage.setItem('amount', amount)
+  } catch {
+    // 無視
+  }
+})
+
 $<HTMLFormElement>('key-form').addEventListener('submit', async (e) => {
   e.preventDefault()
   const input = $<HTMLInputElement>('key-input')
@@ -133,7 +152,9 @@ async function start(): Promise<void> {
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      throw new Error(msg === 'Failed to fetch' ? 'モデルをダウンロードできませんでした。ネット接続を確認してください' : msg)
+      throw new Error(
+        msg === 'Failed to fetch' ? 'モデルをダウンロードできませんでした。ネット接続を確認してください' : msg
+      )
     }
     if (!running) return
 
@@ -189,10 +210,12 @@ function recentContext(): string[] {
 async function findTerms(line: TranscriptLine, body: HTMLElement): Promise<void> {
   const context = recentContext()
   try {
-    const candidates = await window.terms.extract(line.text)
-    // キーがあれば AI に絞り込ませる。だめなときは規則の結果をそのまま使う
-    const refined = line.text.length >= 6 ? await window.ai.refine(context.slice(0, -1), line.text, candidates.map((c) => c.text)) : null
-    const terms = refined ?? candidates
+    const { terms: ruleTerms, nouns } = await window.terms.extract(line.text)
+    // キーがあれば、規則でふるう前の名詞をすべて AI に見せて選ばせる。
+    // キーがない・混んでいる・失敗したときは規則の結果をそのまま使う
+    const refined = nouns.length > 0 ? await window.ai.refine(context.slice(0, -1), line.text, nouns, amount) : null
+    if (refined && !refined.ok) showAiError(refined.error)
+    const terms = refined?.ok ? refined.value : ruleTerms
     if (terms.length === 0) return
     board.add(terms, line.speaker, Date.now(), context)
     // AI が漢字を直した言葉は元の文と一致しないので、印は付けられるものだけ
@@ -202,6 +225,14 @@ async function findTerms(line: TranscriptLine, body: HTMLElement): Promise<void>
   } catch (err) {
     console.error('言葉の抜き出しに失敗しました', err)
   }
+}
+
+/** AI のエラーは、同じものを何度も出さずに状態欄へ一度だけ出す */
+let lastAiError = ''
+function showAiError(error: string): void {
+  if (error === lastAiError) return
+  lastAiError = error
+  status.textContent = `AI での絞り込みに失敗しました（${error}）。規則だけで選んでいます`
 }
 
 function keepWord(text: string): void {

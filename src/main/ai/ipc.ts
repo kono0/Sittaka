@@ -4,7 +4,7 @@ import { getSarashinaKey, setSarashinaKey } from '../settings'
 import { Wordbook, type WordbookEntry } from '../wordbook'
 import { describeError, SarashinaClient } from './chat'
 import { explainTerm } from './explain'
-import { refineTerms } from './refine'
+import { refineTerms, type Amount } from './refine'
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
@@ -27,18 +27,23 @@ export function registerAiIpc(): void {
     client = null
   })
 
-  ipcMain.handle('ai:refine', async (_e, context: string[], utterance: string, candidates: string[]) => {
-    const c = getClient()
-    if (!c) return null
-    // 1分60回の上限に近づいて待たされるなら、AI を通さず規則の結果をそのまま使う
-    if (c.waitFor('sarashina3-nano') > 3000) return null
-    try {
-      return await refineTerms(c, context, utterance, candidates)
-    } catch (err) {
-      console.warn('絞り込みに失敗しました:', describeError(err))
-      return null
+  ipcMain.handle(
+    'ai:refine',
+    async (_e, context: string[], utterance: string, candidates: string[], amount: Amount) => {
+      const c = getClient()
+      if (!c) return null
+      // 1分60回の上限に近づいて待たされるなら、AI を通さず規則の結果をそのまま使う
+      if (c.waitFor('sarashina3-nano') > 3000) return null
+      try {
+        return {
+          ok: true,
+          value: await refineTerms(c, context, utterance, candidates, amount)
+        } satisfies Result<unknown>
+      } catch (err) {
+        return { ok: false, error: describeError(err) } satisfies Result<unknown>
+      }
     }
-  })
+  )
 
   ipcMain.handle('ai:explain', async (_e, context: string[], word: string) => {
     const c = getClient()

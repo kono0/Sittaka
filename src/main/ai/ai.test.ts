@@ -73,11 +73,25 @@ describe('refineTerms', () => {
         { text: ' 冪等性 ', reading: 'べきとうせい' },
         { text: '冪等性', reading: 'べきとうせい' },
         { text: 'a', reading: 'えー' },
-        ...['A1', 'B1', 'C1', 'D1', 'E1'].map((text) => ({ text, reading: '' }))
+        ...['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1'].map((text) => ({ text, reading: '' }))
       ]
     }))
     const out = await refineTerms(client, [], '冪等性を担保します', ['冪等性'])
-    expect(out.map((t) => t.text)).toEqual(['冪等性', 'A1', 'B1', 'C1', 'D1'])
+    expect(out.map((t) => t.text)).toEqual(['冪等性', 'A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1'])
+  })
+
+  it('tells the model how much to keep', async () => {
+    const prompts: string[] = []
+    const client: ChatClient = {
+      json: async <T>(_m: Model, messages: { content: string }[]) => {
+        prompts.push(messages[0].content)
+        return { terms: [] } as T
+      }
+    }
+    await refineTerms(client, [], 'x', [], 'few')
+    await refineTerms(client, [], 'x', [], 'many')
+    expect(prompts[0]).toContain('可能性が高い言葉')
+    expect(prompts[1]).toContain('ほとんど残す')
   })
 })
 

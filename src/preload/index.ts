@@ -30,8 +30,8 @@ contextBridge.exposeInMainWorld('settings', {
 })
 
 contextBridge.exposeInMainWorld('ai', {
-  refine: (context: string[], utterance: string, candidates: string[]) =>
-    ipcRenderer.invoke('ai:refine', context, utterance, candidates),
+  refine: (context: string[], utterance: string, candidates: string[], amount: string) =>
+    ipcRenderer.invoke('ai:refine', context, utterance, candidates, amount),
   explain: (context: string[], word: string) => ipcRenderer.invoke('ai:explain', context, word)
 })
 

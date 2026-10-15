@@ -56,6 +56,18 @@ export function extractTerms(tokens: Token[]): Term[] {
   return terms
 }
 
+/**
+ * 規則でふるいにかける前の、発話の中の名詞のまとまりをすべて返す（人名などは除く）。
+ * AI を使うときは、こちらを候補として渡して AI に判断させる。
+ */
+export function extractNouns(tokens: Token[]): string[] {
+  const nouns = nounChunks(tokens)
+    .filter((c) => !c.some((t) => t.pos_detail_2 === '人名'))
+    .map((c) => c.map((t) => t.surface_form).join(''))
+    .filter((text) => text.length >= 2)
+  return [...new Set(nouns)]
+}
+
 /** 連続する名詞（と頭につく接頭詞）を1つの言葉としてまとめる */
 function nounChunks(tokens: Token[]): Token[][] {
   const chunks: Token[][] = []

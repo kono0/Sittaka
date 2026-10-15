@@ -17,7 +17,10 @@ declare global {
     }
     /** 発話から調べる候補の言葉を抜き出す */
     terms: {
-      extract(text: string): Promise<{ text: string; reading?: string; reasons: string[] }[]>
+      /** terms: 規則で選んだ言葉 / nouns: ふるいにかける前の名詞すべて（AI に渡す） */
+      extract(
+        text: string
+      ): Promise<{ terms: { text: string; reading?: string; reasons: string[] }[]; nouns: string[] }>
     }
     settings: {
       get(): Promise<{ hasSarashinaKey: boolean }>
@@ -25,8 +28,13 @@ declare global {
     }
     /** Sarashina による絞り込みと意味の説明。キーがなければ使えない */
     ai: {
-      /** キーがない・混んでいる・失敗したときは null（規則の結果をそのまま使う） */
-      refine(context: string[], utterance: string, candidates: string[]): Promise<{ text: string; reading: string }[] | null>
+      /** キーがない・混んでいるときは null（規則の結果をそのまま使う） */
+      refine(
+        context: string[],
+        utterance: string,
+        candidates: string[],
+        amount: 'few' | 'normal' | 'many'
+      ): Promise<{ ok: true; value: { text: string; reading: string }[] } | { ok: false; error: string } | null>
       explain(
         context: string[],
         word: string

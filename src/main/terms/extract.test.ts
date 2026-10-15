@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { extractTerms } from './extract'
+import { extractNouns, extractTerms } from './extract'
 import { getTokenizer, type Tokenizer } from './tokenizer'
 
 let tokenizer: Tokenizer
@@ -37,5 +37,12 @@ describe('extractTerms', () => {
 
   it('does not repeat the same word within one utterance', () => {
     expect(terms('レイテンシとレイテンシの比較')).toEqual(['レイテンシ'])
+  })
+
+  it('lists every noun for the AI to judge, including ones the rules skip', () => {
+    const nouns = extractNouns(tokenizer.tokenize('この変数のスコープは関数の中だけです田中さん'))
+    expect(nouns).toEqual(expect.arrayContaining(['変数', 'スコープ', '関数']))
+    expect(nouns).not.toContain('田中さん')
+    expect(terms('この変数のスコープは関数の中だけです')).not.toContain('変数')
   })
 })
