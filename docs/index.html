@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Talking Word — 通話中の知らない言葉を、こっそり調べる</title>
+    <meta
+      name="description"
+      content="オンライン通話の会話を PC の中で文字にして、出てきた専門用語やカタカナ語を画面の端に並べる Windows アプリ。押すだけで意味が分かります。"
+    />
+    <link rel="icon" href="img/icon.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f5f6f8;
+        --surface: #ffffff;
+        --fg: #1a1c20;
+        --muted: #6b7280;
+        --line: #e2e5ea;
+        --accent: #2f6fec;
+        --accent-fg: #ffffff;
+        --accent-soft: rgba(47, 111, 236, 0.1);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #15171b;
+          --surface: #1e2126;
+          --fg: #e7e9ee;
+          --muted: #8c93a1;
+          --line: #2d3139;
+          --accent: #6ea0ff;
+          --accent-fg: #0d1526;
+          --accent-soft: rgba(110, 160, 255, 0.14);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          16px/1.75 'Segoe UI',
+          'Yu Gothic UI',
+          'Hiragino Sans',
+          'Noto Sans JP',
+          system-ui,
+          sans-serif;
+      }
+      .wrap {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 0 16px;
+      }
+      header.hero {
+        padding: 56px 0 40px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 32px;
+        align-items: center;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        font-size: 20px;
+      }
+      .brand img {
+        width: 40px;
+        height: 40px;
+      }
+      h1 {
+        font-size: clamp(28px, 5vw, 40px);
+        line-height: 1.35;
+        margin: 20px 0 12px;
+      }
+      .lead {
+        color: var(--muted);
+        margin: 0 0 24px;
+      }
+      .cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+      .button {
+        display: inline-block;
+        padding: 12px 22px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: var(--accent-fg);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .button.secondary {
+        background: transparent;
+        color: var(--fg);
+        border: 1px solid var(--line);
+      }
+      .small {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .shot {
+        width: 260px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        display: block;
+      }
+      .shot.dark {
+        display: none;
+      }
+      @media (prefers-color-scheme: dark) {
+        .shot.light {
+          display: none;
+        }
+        .shot.dark {
+          display: block;
+        }
+      }
+      section {
+        padding: 40px 0;
+        border-top: 1px solid var(--line);
+      }
+      h2 {
+        font-size: 24px;
+        margin: 0 0 20px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 18px 20px;
+      }
+      .card h3 {
+        margin: 0 0 6px;
+        font-size: 17px;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      ol.steps {
+        padding-left: 1.4em;
+        margin: 0;
+      }
+      ol.steps li {
+        margin-bottom: 8px;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 32px;
+        align-items: start;
+      }
+      kbd {
+        font: 13px/1 ui-monospace, Consolas, monospace;
+        padding: 3px 6px;
+        border: 1px solid var(--line);
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        background: var(--surface);
+      }
+      .note {
+        background: var(--accent-soft);
+        border-radius: 10px;
+        padding: 14px 18px;
+        font-size: 15px;
+      }
+      footer {
+        padding: 32px 0 48px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 14px;
+      }
+      footer a,
+      section a {
+        color: var(--accent);
+      }
+      @media (max-width: 720px) {
+        header.hero,
+        .split {
+          grid-template-columns: 1fr;
+        }
+        .shot {
+          width: 100%;
+          max-width: 320px;
+          margin: 0 auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="hero">
+        <div>
+          <div class="brand"><img src="img/icon.svg" alt="" />Talking Word</div>
+          <h1>通話中の「それ何？」を、<br />相手にバレずに調べる。</h1>
+          <p class="lead">
+            オンライン通話の会話をその場で文字にして、出てきた専門用語やカタカナ語を画面の端に並べます。気になる言葉を押せば、会話に合った意味が一文で出ます。
+          </p>
+          <div class="cta">
+            <a class="button" href="https://github.com/kono0/Talking.word_Cheating_tool/releases/latest"
+              >Windows 版をダウンロード</a
+            >
+            <a class="button secondary" href="https://github.com/kono0/Talking.word_Cheating_tool">ソースコード</a>
+          </div>
+          <p class="small">無料 ・ Windows 10 / 11（64ビット）・ Mac 版は準備中</p>
+        </div>
+        <div>
+          <img class="shot light" src="img/panel-light.png" alt="会話から拾った言葉と、キープした言葉の意味が並ぶ画面" />
+          <img class="shot dark" src="img/panel-dark.png" alt="会話から拾った言葉と、キープした言葉の意味が並ぶ画面（ダーク）" />
+        </div>
+      </header>
+
+      <section>
+        <h2>できること</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Zoom・Teams・Discord に対応</h3>
+            <p>PC から出る音をそのまま聞き取るので、通話アプリを選びません。自分の声はマイクから拾います。</p>
+          </div>
+          <div class="card">
+            <h3>知らない言葉だけを拾う</h3>
+            <p>日常語は外して、専門用語・カタカナ語・略語を並べます。拾う量は「少なめ・ふつう・多め」から選べます。</p>
+          </div>
+          <div class="card">
+            <h3>押すだけで意味が分かる</h3>
+            <p>
+              言葉を押すか <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>数字</kbd> でキープ。AI
+              が、その会話の流れに合った意味を一文で付けます。
+            </p>
+          </div>
+          <div class="card">
+            <h3>画面共有に映らない</h3>
+            <p>パネルは画面共有や録画に映らないようにしています。小さな帯にたたんでおくこともできます。</p>
+          </div>
+          <div class="card">
+            <h3>あとで見返せる単語帳</h3>
+            <p>キープした言葉は、意味とそのときの会話と一緒に残ります。フォルダで分けて整理できます。</p>
+          </div>
+          <div class="card">
+            <h3>ライト・ダークに自動で合わせる</h3>
+            <p>Windows の色の設定に合わせて見た目が変わります。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="split">
+          <div>
+            <h2>はじめかた</h2>
+            <ol class="steps">
+              <li>上のボタンから <b>TalkingWord-Setup.exe</b> をダウンロードして開きます。</li>
+              <li>
+                「Windows によって PC が保護されました」と出たら、「詳細情報」→「実行」を押します（個人で作っているアプリのため、署名をしていません）。
+              </li>
+              <li>初回の案内に沿って、音声認識モデル（約160MB）のダウンロードとマイクの選択を済ませます。</li>
+              <li>
+                意味の表示を使う場合は、AI（Sarashina・Gemini・Claude から選択）の API キーを入れます。キーがなくても言葉を並べる機能は使えます。
+              </li>
+              <li>通話を始めたら「開始」を押すだけです。</li>
+            </ol>
+          </div>
+          <img class="shot" src="img/wordbook.png" alt="キープした言葉が意味と一緒に並ぶ単語帳" />
+        </div>
+      </section>
+
+      <section>
+        <h2>データの扱い</h2>
+        <div class="note">
+          <p>
+            <b>音声は PC の外に出しません。</b>
+            文字にするのは PC の中（ReazonSpeech）で行い、音声を送ったり保存したりはしません。
+          </p>
+          <p>
+            AI を使う場合だけ、文字にした会話の一部を、あなたが選んだ AI に送ります。Sarashina の無料ベータと Gemini
+            の無料枠では、送った内容が学習やサービス改善に使われることがあるので、仕事の会話では有料のプランをおすすめします。
+          </p>
+          <p>
+            くわしくは
+            <a href="https://github.com/kono0/Talking.word_Cheating_tool/blob/main/PRIVACY.md">プライバシーポリシー</a>
+            をご覧ください。
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        Talking Word ・
+        <a href="https://github.com/kono0/Talking.word_Cheating_tool/issues">不具合・要望はこちら</a>
+        ・ MIT ライセンス ・ 使っているソフトウェアのライセンス表記は、アプリの「設定」から開けます
+      </footer>
+    </div>
+  </body>
+</html>

@@ -28,8 +28,29 @@ const KATAKANA_WORD = /^[\p{Script=Katakana}ー・]+$/u
 const ALPHABET = /[A-Za-zＡ-Ｚａ-ｚ]{2,}/
 const HIRAGANA_WORD = /^[\p{Script=Hiragana}ー]+$/u
 
-// 名詞のつながりに入れる細分類。数・代名詞・非自立（「こと」「ため」など）は区切りにする。
-const NOUN_PARTS = new Set(['一般', '固有名詞', 'サ変接続', '形容動詞語幹', '接尾', '副詞可能', 'ナイ形容詞語幹'])
+// 名詞のつながりに入れる細分類。数・代名詞・非自立（「こと」「ため」など）・
+// 副詞のようにも使う名詞（「全て」「今」「一番」など）は区切りにする。
+const NOUN_PARTS = new Set(['一般', '固有名詞', 'サ変接続', '形容動詞語幹', '接尾', 'ナイ形容詞語幹'])
+// 名詞だが、ほかの名詞とつなげると変な言葉になるもの（「全て自分」「一つ一つ理屈」など）
+const BREAK_WORD = /^(自分|[一二三四五六七八九十幾何]+つ)$/
+const LATIN = /[A-Za-zＡ-Ｚａ-ｚ]/
+/** 漢字の言葉と英字の言葉が助詞なしで並んだら、別の言葉とみなす（「移動CPU」）。「プリントF」はつなぐ */
+const scriptBreak = (a: string, b: string) =>
+  (LATIN.test(a) && !LATIN.test(b) && KANJI.test(b)) || (LATIN.test(b) && !LATIN.test(a) && KANJI.test(a))
+
+/**
+ * 句読点のない文字起こしでは、外国の人名などの辞書にないカタカナ語が前後の言葉と
+ * つながってしまう（「ディオゲネス古代ギリシャ」「哲学者ペーター」）。
+ * 辞書にないカタカナ語のあとに漢字の普通名詞が来たとき、「〜者」「〜家」のあとに
+ * 辞書にないカタカナ語が来たときは区切る。「リトライ処理」（サ変名詞）はつなぐ。
+ */
+const isUnknownKatakana = (t: Token) => t.word_type === 'UNKNOWN' && KATAKANA_WORD.test(t.surface_form)
+const unknownBreak = (prev: Token, t: Token) =>
+  (isUnknownKatakana(prev) &&
+    t.word_type !== 'UNKNOWN' &&
+    (t.pos_detail_1 === '一般' || t.pos_detail_1 === '固有名詞') &&
+    KANJI.test(t.surface_form)) ||
+  (isUnknownKatakana(t) && prev.pos_detail_1 === '接尾' && KANJI.test(prev.surface_form))
 
 // カタカナでも、ほとんどの人が知っている言葉
 const COMMON_KATAKANA = new Set(
@@ -56,6 +77,18 @@ export function extractTerms(tokens: Token[]): Term[] {
   return terms
 }
 
+/**
+ * 規則でふるいにかける前の、発話の中の名詞のまとまりをすべて返す（人名などは除く）。
+ * AI を使うときは、こちらを候補として渡して AI に判断させる。
+ */
+export function extractNouns(tokens: Token[]): string[] {
+  const nouns = nounChunks(tokens)
+    .filter((c) => !c.some((t) => t.pos_detail_2 === '人名'))
+    .map((c) => c.map((t) => t.surface_form).join(''))
+    .filter((text) => text.length >= 2)
+  return [...new Set(nouns)]
+}
+
 /** 連続する名詞（と頭につく接頭詞）を1つの言葉としてまとめる */
 function nounChunks(tokens: Token[]): Token[][] {
   const chunks: Token[][] = []
@@ -71,11 +104,14 @@ function nounChunks(tokens: Token[]): Token[][] {
     const adjStem = t.pos_detail_1 === '形容動詞語幹' && tokens[i + 1]?.pos_detail_1 !== '接尾'
     // ひらがなだけの名詞（「つまり」「もの」など）は、言葉の区切りとして扱う
     const plainKana = HIRAGANA_WORD.test(t.surface_form)
-    const isNoun = t.pos === '名詞' && NOUN_PARTS.has(t.pos_detail_1) && !adjStem && !plainKana
+    const isNoun =
+      t.pos === '名詞' && NOUN_PARTS.has(t.pos_detail_1) && !adjStem && !plainKana && !BREAK_WORD.test(t.surface_form)
     const isPrefix = t.pos === '接頭詞' && t.pos_detail_1 === '名詞接続'
     if (isNoun) {
       // 接尾辞（「性」「化」など）からは言葉を始めない
       if (cur.length === 0 && t.pos_detail_1 === '接尾') continue
+      const prev = cur[cur.length - 1]
+      if (prev && prev.pos !== '接頭詞' && (scriptBreak(prev.surface_form, t.surface_form) || unknownBreak(prev, t))) flush()
       cur.push(t)
     } else if (isPrefix) {
       if (cur.length) flush()
@@ -111,12 +147,20 @@ function judge(chunk: Token[]): Term | null {
   if (reasons.length === 0) return null
 
   const term: Term = { text, reasons }
-  // 辞書にない部分が混じると読みが分からないので、そのときは付けない
-  const readings = chunk.map((t) => (KANJI.test(t.surface_form) ? t.reading : t.surface_form))
-  if (KANJI.test(text) && readings.every((r) => r && r !== '*')) {
-    term.reading = toHiragana(readings.join(''))
-  }
+  const reading = readingOf(chunk)
+  if (reading) term.reading = reading
   return term
+}
+
+/**
+ * 漢字を含む言葉の読み（ひらがな）。辞書にない部分が混じると読みが分からないので、そのときは返さない
+ */
+export function readingOf(tokens: Token[]): string | undefined {
+  const text = tokens.map((t) => t.surface_form).join('')
+  if (!KANJI.test(text)) return undefined
+  const readings = tokens.map((t) => (KANJI.test(t.surface_form) ? t.reading : t.surface_form))
+  if (!readings.every((r) => r && r !== '*')) return undefined
+  return toHiragana(readings.join(''))
 }
 
 function toHiragana(s: string): string {

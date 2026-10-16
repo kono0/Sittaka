@@ -1,9 +1,5 @@
 // Web Worker の中で Whisper を動かす（画面が固まらないように）。
-import {
-  pipeline,
-  type AutomaticSpeechRecognitionPipeline,
-  type ProgressInfo
-} from '@huggingface/transformers'
+import { pipeline, type AutomaticSpeechRecognitionPipeline, type ProgressInfo } from '@huggingface/transformers'
 
 export type WorkerRequest =
   | { type: 'load'; model: string; device: 'webgpu' | 'wasm'; dtype: string }

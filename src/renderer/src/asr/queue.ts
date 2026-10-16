@@ -1,4 +1,5 @@
 import type { Speaker } from '../audio/capture'
+import type { AsrToken } from '../../../preload/api'
 import type { Transcriber } from './transcriber'
 
 export interface TranscriptLine {
@@ -9,6 +10,8 @@ export interface TranscriptLine {
   /** 文字起こしそのものにかかった時間 */
   inferenceMs: number
   audioMs: number
+  /** 文字ごとの確率（エンジンが出せるときだけ） */
+  tokens?: AsrToken[]
 }
 
 interface Job {
@@ -50,7 +53,7 @@ export class TranscriptionQueue {
         const audioMs = (job.audio.length / 16000) * 1000
         const started = this.now()
         try {
-          const text = await this.engine.transcribe(job.audio)
+          const { text, tokens } = await this.engine.transcribe(job.audio)
           const done = this.now()
           if (text) {
             this.onLine({
@@ -58,7 +61,8 @@ export class TranscriptionQueue {
               text,
               latencyMs: done - job.capturedAt,
               inferenceMs: done - started,
-              audioMs
+              audioMs,
+              ...(tokens ? { tokens } : {})
             })
           }
         } catch (err) {

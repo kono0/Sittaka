@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Transcriber } from './transcriber'
 import { TranscriptionQueue, type TranscriptLine } from './queue'
 
@@ -12,22 +12,26 @@ function fakeEngine(results: Record<number, string>, log: number[]): Transcriber
       await new Promise((r) => setTimeout(r, 5))
       const text = results[audio.length]
       if (text === 'ERR') throw new Error('boom')
-      return text
+      return { text }
     }
   }
 }
 
-const tick = () => new Promise((r) => setTimeout(r, 50))
 
 describe('TranscriptionQueue', () => {
   it('transcribes jobs one at a time in arrival order', async () => {
     const log: number[] = []
     const lines: TranscriptLine[] = []
-    const q = new TranscriptionQueue(fakeEngine({ 16000: 'こんにちは', 32000: 'はい' }, log), (l) => lines.push(l), () => {})
+    const q = new TranscriptionQueue(
+      fakeEngine({ 16000: 'こんにちは', 32000: 'はい' }, log),
+      (l) => lines.push(l),
+      () => {}
+    )
     q.push('other', new Float32Array(16000), 0)
     q.push('self', new Float32Array(32000), 0)
     expect(q.backlog).toBe(1)
-    await tick()
+    // Windows のタイマーは粗い（約15ms刻み）ので、決まった時間ではなく終わるまで待つ
+    await vi.waitFor(() => expect(lines).toHaveLength(2))
     expect(log).toEqual([16000, 32000])
     expect(lines.map((l) => [l.speaker, l.text])).toEqual([
       ['other', 'こんにちは'],
@@ -47,7 +51,7 @@ describe('TranscriptionQueue', () => {
     q.push('other', new Float32Array(100), 0)
     q.push('other', new Float32Array(200), 0)
     q.push('other', new Float32Array(300), 0)
-    await tick()
+    await vi.waitFor(() => expect(lines).toHaveLength(1))
     expect(lines.map((l) => l.text)).toEqual(['ok'])
     expect(errors).toHaveLength(1)
   })

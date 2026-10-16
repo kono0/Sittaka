@@ -3,24 +3,30 @@
   "version": "0.1.0",
   "private": true,
   "description": "通話中の会話を文字起こしし、知らない単語をこっそり調べるデスクトップアプリ",
+  "license": "MIT",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dist": "electron-vite build && npm run notices && electron-builder --win",
+    "dist:dir": "electron-vite build && npm run notices && electron-builder --dir",
+    "notices": "node scripts/notices.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.3.1",
+    "electron-updater": "^6.8.9",
     "joyo-kanji": "^0.2.1",
     "kuromoji": "^0.1.2",
     "sherpa-onnx-node": "^1.13.8"
   },
   "devDependencies": {
+    "@huggingface/transformers": "^4.3.1",
     "@types/kuromoji": "^0.1.3",
     "@types/node": "^22.0.0",
     "electron": "44.7.2",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^6.0.0",
     "typescript": "^5.9.0",
     "vite": "^7.0.0",
@@ -28,5 +34,11 @@
   },
   "allowScripts": {
     "electron@44.7.2": true
+  },
+  "productName": "Talking Word",
+  "author": "kono0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kono0/Talking.word_Cheating_tool.git"
   }
 }

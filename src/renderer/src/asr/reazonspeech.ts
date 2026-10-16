@@ -1,4 +1,4 @@
-import type { LoadProgress, Transcriber } from './transcriber'
+import type { LoadProgress, Transcriber, Transcript } from './transcriber'
 
 /**
  * 日本語専用の ReazonSpeech。CPU だけで会話より十分速く動く。
@@ -11,7 +11,7 @@ export class ReazonSpeechTranscriber implements Transcriber {
     return window.asr.load(onProgress)
   }
 
-  transcribe(audio: Float32Array): Promise<string> {
+  transcribe(audio: Float32Array): Promise<Transcript> {
     return window.asr.transcribe(audio)
   }
 

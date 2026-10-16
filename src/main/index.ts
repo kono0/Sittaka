@@ -1,9 +1,28 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, desktopCapturer, globalShortcut, screen, session } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  desktopCapturer,
+  globalShortcut,
+  ipcMain,
+  nativeTheme,
+  screen,
+  session,
+  shell
+} from 'electron'
+import { registerAiIpc } from './ai/ipc'
 import { registerAsrIpc } from './asr/service'
 import { registerTermsIpc } from './terms/ipc'
+import { checkForUpdates } from './updater'
+
+// 設定・単語帳・音声モデルの置き場所。表示名を変えても今までのデータを使い続けられるよう固定する
+app.setPath('userData', join(app.getPath('appData'), 'talking-word-lookup'))
 
 const PANEL_WIDTH = 380
+const WIDE_PANEL_WIDTH = 760
+const MINI_WIDTH = 340
+const MINI_HEIGHT = 250
+const MINI_MARGIN = 12
 
 function createPanel(): BrowserWindow {
   const { workArea } = screen.getPrimaryDisplay()
@@ -14,9 +33,15 @@ function createPanel(): BrowserWindow {
     height: workArea.height,
     x: workArea.x + workArea.width - PANEL_WIDTH,
     y: workArea.y,
+    minWidth: 280,
+    minHeight: 160,
     alwaysOnTop: true,
     autoHideMenuBar: true,
+    // 見た目を Windows のライト・ダークに合わせるため、枠は自前で描く（上の帯をつかんで動かせる）
+    frame: false,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#15171b' : '#f5f6f8',
     title: 'Talking Word',
+    icon: join(__dirname, '../../resources/icon.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -28,6 +53,33 @@ function createPanel(): BrowserWindow {
   win.setAlwaysOnTop(true, 'screen-saver')
   // 画面共有や録画にこのパネルが映らないようにする（Windows 10 2004 以降・macOS）
   win.setContentProtection(true)
+
+  // 表示の大きさ。右端はそろえたまま変える
+  //  full: 画面の高さいっぱいの縦長パネル（検証タブを開いている間は幅を広げる）
+  //  mini: 画面の右上の小さな帯
+  let mode: 'full' | 'mini' = 'full'
+  let wide = false
+  const layout = () => {
+    const b = win.getBounds()
+    const { workArea } = screen.getDisplayMatching(b)
+    const right = b.x + b.width
+    if (mode === 'mini') {
+      win.setBounds({ x: right - MINI_WIDTH, y: workArea.y + MINI_MARGIN, width: MINI_WIDTH, height: MINI_HEIGHT })
+    } else {
+      const width = wide ? WIDE_PANEL_WIDTH : PANEL_WIDTH
+      win.setBounds({ x: right - width, y: workArea.y, width, height: workArea.height })
+    }
+  }
+  ipcMain.handle('panel:setWide', (_e, w: boolean) => {
+    if (w === wide) return
+    wide = w
+    if (mode === 'full') layout()
+  })
+  ipcMain.handle('panel:setMode', (_e, m: 'full' | 'mini') => {
+    if (m === mode) return
+    mode = m
+    layout()
+  })
 
   if (process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -54,23 +106,34 @@ function allowAudioCapture(): void {
 
 /**
  * パネルを触らずに操作するためのショートカット。通話アプリを前面にしたままでも効く。
- * Ctrl+Alt+1〜9: 言葉の一覧で上から N 番目をキープ / Ctrl+Alt+H: パネルを隠す・出す
+ * Ctrl+Alt+1〜9: 言葉の一覧で上から N 番目をキープ / Ctrl+Alt+M: 小さくする・広げる / Ctrl+Alt+H: パネルを隠す・出す
  */
 function registerHotkeys(win: BrowserWindow): void {
   for (let n = 1; n <= 9; n++) {
     globalShortcut.register(`CommandOrControl+Alt+${n}`, () => win.webContents.send('hotkey:keep', n))
   }
+  globalShortcut.register('CommandOrControl+Alt+M', () => win.webContents.send('hotkey:toggleMode'))
   globalShortcut.register('CommandOrControl+Alt+H', () => {
     if (win.isVisible()) win.hide()
     else win.showInactive()
   })
 }
 
+// インストール先（開発中はリポジトリ）に置いた文書を開く
+ipcMain.handle('app:openDoc', async (_e, name: 'privacy' | 'notices') => {
+  const file = { privacy: 'PRIVACY.md', notices: 'THIRD_PARTY_NOTICES.md' }[name]
+  if (!file) return
+  const error = await shell.openPath(join(app.isPackaged ? process.resourcesPath : app.getAppPath(), file))
+  if (error) throw new Error(error)
+})
+
 app.whenReady().then(() => {
   allowAudioCapture()
   registerAsrIpc()
   registerTermsIpc()
+  registerAiIpc()
   registerHotkeys(createPanel())
+  checkForUpdates()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createPanel()
   })

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- 16〜32px 用。線を減らして形を太くする -->
+  <rect x="2" y="2" width="96" height="96" rx="22" fill="#3471e8"/>
+  <path fill="#fff" d="M22 14h44a10 10 0 0 1 10 10v26a10 10 0 0 1-10 10H40L24 74V60h-2a10 10 0 0 1-10-10V24a10 10 0 0 1 10-10z"/>
+  <circle cx="64" cy="62" r="24" fill="#3471e8"/>
+  <circle cx="64" cy="62" r="14" fill="#dce8ff" stroke="#fff" stroke-width="9"/>
+  <path d="M75 73l12 12" stroke="#fff" stroke-width="12" stroke-linecap="round"/>
+</svg>

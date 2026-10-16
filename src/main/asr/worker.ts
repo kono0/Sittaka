@@ -1,7 +1,7 @@
 // utilityProcess で動く文字起こし担当。重い計算で main プロセスや画面を止めないよう分けている。
 import { join } from 'node:path'
 import { OfflineRecognizer } from 'sherpa-onnx-node'
-import type { AsrRequest, AsrResponse } from './protocol'
+import type { AsrRequest, AsrResponse, Transcript } from './protocol'
 import { MODEL_FILES } from './model-files'
 
 let recognizer: OfflineRecognizer | null = null
@@ -34,7 +34,7 @@ process.parentPort.on('message', (e: Electron.MessageEvent) => {
       const stream = recognizer.createStream()
       stream.acceptWaveform({ samples: req.samples, sampleRate: 16000 })
       recognizer.decode(stream)
-      post({ type: 'result', id: req.id, text: recognizer.getResult(stream).text.trim() })
+      post({ type: 'result', id: req.id, transcript: toTranscript(recognizer.getResult(stream)) })
     }
   } catch (err) {
     post({
@@ -44,3 +44,14 @@ process.parentPort.on('message', (e: Electron.MessageEvent) => {
     })
   }
 })
+
+/** 文字ごとの確率（対数）を 0〜1 にして付ける。空白だけの文字は落とす */
+function toTranscript(r: { text: string; tokens?: string[]; ys_log_probs?: number[] }): Transcript {
+  const text = r.text.trim()
+  const probs = r.ys_log_probs
+  if (!r.tokens || !probs || probs.length !== r.tokens.length) return { text }
+  const tokens = r.tokens
+    .map((t, i) => ({ text: t, p: Math.round(Math.exp(probs[i]) * 100) / 100 }))
+    .filter((t) => t.text.trim())
+  return { text, tokens }
+}
