@@ -3,6 +3,10 @@ import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeThe
 import { registerAiIpc } from './ai/ipc'
 import { registerAsrIpc } from './asr/service'
 import { registerTermsIpc } from './terms/ipc'
+import { checkForUpdates } from './updater'
+
+// 設定・単語帳・音声モデルの置き場所。表示名を変えても今までのデータを使い続けられるよう固定する
+app.setPath('userData', join(app.getPath('appData'), 'talking-word-lookup'))
 
 const PANEL_WIDTH = 380
 const WIDE_PANEL_WIDTH = 760
@@ -111,6 +115,7 @@ app.whenReady().then(() => {
   registerTermsIpc()
   registerAiIpc()
   registerHotkeys(createPanel())
+  checkForUpdates()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createPanel()
   })

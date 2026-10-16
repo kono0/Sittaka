@@ -1,0 +1,31 @@
+appId: io.github.kono0.talkingword
+productName: Talking Word
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**
+  - resources/**
+  - '!**/*.map'
+# sherpa-onnx はネイティブモジュールと DLL を一緒に読むので asar の外に出す。
+# kuromoji の辞書もファイルとして読むので外に出しておく。
+asarUnpack:
+  - node_modules/sherpa-onnx-*/**
+  - node_modules/kuromoji/dict/**
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: resources/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: TalkingWord-Setup-${version}.${ext}
+  shortcutName: Talking Word
+mac:
+  icon: resources/icon.png
+publish:
+  provider: github
+  owner: kono0
+  repo: Talking.word_Cheating_tool
