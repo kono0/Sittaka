@@ -6,6 +6,8 @@ export type Speaker = 'other' | 'self'
 export interface CaptureEvents {
   onLevel(speaker: Speaker, level: number): void
   onSegment(speaker: Speaker, segment: Segment, capturedAt: number): void
+  /** 自分の声に使うマイク。'default' は Windows の既定、'off' は取り込まない、それ以外は deviceId */
+  micDevice(): string
   /** イヤホンなどをつなぎ替えたので、取り込み直した（失敗したときは error 付き） */
   onReconnect?(error?: string): void
 }
@@ -64,10 +66,25 @@ export class CallCapture {
     this.attach('other', new MediaStream(display.getAudioTracks()))
 
     // 自分の声: スピーカーから漏れた相手の声を拾いにくくするためエコー除去を有効にする
-    const mic = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-    })
+    const device = this.events.micDevice()
+    if (device === 'off') return
+    const audio: MediaTrackConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    let mic: MediaStream
+    try {
+      mic = await navigator.mediaDevices.getUserMedia({
+        audio: device === 'default' ? audio : { ...audio, deviceId: { exact: device } }
+      })
+    } catch (err) {
+      // 選んだマイクが外されているときは既定のマイクを使う
+      if (device === 'default') throw err
+      mic = await navigator.mediaDevices.getUserMedia({ audio })
+    }
     this.attach('self', mic)
+  }
+
+  /** マイクの設定を変えたときなどに、取り込み直す */
+  refresh(): void {
+    this.scheduleReconnect()
   }
 
   /** 取り込みを止める。話している途中の分は文字起こしに回す */

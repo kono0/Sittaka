@@ -78,7 +78,10 @@ for (const tab of tabs) {
     for (const t of tabs) t.classList.toggle('active', t === tab)
     for (const v of document.querySelectorAll<HTMLElement>('.view')) v.hidden = v.dataset.view !== tab.dataset.view
     if (tab.dataset.view === 'wordbook') void renderWordbook()
-    if (tab.dataset.view === 'settings') void renderSettings()
+    if (tab.dataset.view === 'settings') {
+      void renderSettings()
+      void renderMics()
+    }
     inspector.setVisible(tab.dataset.view === 'inspect')
   })
 }
@@ -100,6 +103,42 @@ amountSelect.addEventListener('change', () => {
     // 無視
   }
 })
+
+const micSelect = $<HTMLSelectElement>('mic')
+let micDevice = 'default'
+try {
+  micDevice = localStorage.getItem('mic') ?? 'default'
+} catch {
+  // 保存できない環境でも既定値で動く
+}
+// Windows での Bluetooth マイクの名前（「ヘッドセット (… Hands-Free)」など）
+const BLUETOOTH_MIC = /bluetooth|hands-?free|ハンズフリー|airpods|buds/i
+
+async function renderMics(): Promise<void> {
+  const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
+    (d) => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications'
+  )
+  const options = [new Option('Windows の既定のマイク', 'default'), new Option('使わない（相手の声だけ）', 'off')]
+  devices.forEach((d, i) => {
+    const label = d.label || `マイク ${i + 1}`
+    options.push(new Option(BLUETOOTH_MIC.test(label) ? `${label}（Bluetooth・音質が落ちます）` : label, d.deviceId))
+  })
+  // 選んでいたマイクが外されていても、選択は残しておく（つなぎ直したら戻る）
+  if (!options.some((o) => o.value === micDevice)) options.push(new Option('（外されたマイク）', micDevice))
+  micSelect.replaceChildren(...options)
+  micSelect.value = micDevice
+}
+micSelect.addEventListener('change', () => {
+  micDevice = micSelect.value
+  try {
+    localStorage.setItem('mic', micDevice)
+  } catch {
+    // 無視
+  }
+  capture?.refresh()
+})
+navigator.mediaDevices.addEventListener('devicechange', () => void renderMics())
+void renderMics()
 
 $<HTMLFormElement>('key-form').addEventListener('submit', async (e) => {
   e.preventDefault()
@@ -145,10 +184,13 @@ async function start(): Promise<void> {
         queue?.push(speaker, seg.audio, capturedAt)
         renderStats()
       },
+      micDevice: () => micDevice,
       onReconnect: (error) => {
+        meters.self.value = 0
+        meters.other.value = 0
         status.textContent = error
-          ? `音声機器が切り替わったあと、取り込み直せませんでした: ${error}（停止して開始し直してください）`
-          : '音声機器が切り替わったので、取り込み直しました'
+          ? `音声の取り込み直しに失敗しました: ${error}（停止して開始し直してください）`
+          : '音声機器の変更に合わせて、取り込み直しました'
       }
     })
     await capture.start()
