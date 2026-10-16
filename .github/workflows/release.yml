@@ -41,6 +41,13 @@ jobs:
             git tag "$tag" "$GITHUB_SHA"
             git push origin "$tag"
           fi
+          # 下書きを先に 1 つだけ作っておく。無いまま electron-builder に任せると、
+          # 複数のファイルを同時に上げるときに下書きが 2 つに分かれることがある。
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --draft --title "$tag" --notes ""
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
