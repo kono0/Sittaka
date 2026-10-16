@@ -71,8 +71,11 @@ function systemPrompt(): string {
 
 迷ったら低いほうにしてください。同じ言葉が前の発言で出ていても、毎回同じ基準で判定してください。
 
-音声認識の聞き間違いは、会話の分野から考えて正しい言葉に直してください（例: プログラミングの話での「資源語」「地理言語」→「C言語」、「プリントエフ」→「printf」）。直した言葉は直したあとの言葉で level を付けます。
-英字の言葉の途中に空白を入れないでください（「Frin tf」ではなく「printf」）。
+音声認識の聞き間違いに気をつけてください。会話の話題に合わない言葉や、実在しない言葉は、聞き間違いの可能性が高いです。
+- 「これまでに出た言葉」や前後の会話から、音の近い正しい言葉が分かれば text を直す（例: プログラミングの話での「資源語」→「C言語」、脳の話での「カンマン」→「海馬」）。level は直したあとの言葉で付ける
+- 直し方が分からない、意味の通らない言葉は level 1 にする（でたらめな言葉を表示しないため）
+- 2つの言葉が誤ってつながっている候補は、text に「、」で区切って書く（例: 「山田東京」→「山田、東京」）
+- 英字の言葉の途中に空白を入れない（「Frin tf」ではなく「printf」）
 
 「今の発言」の中に、候補から漏れた level 3 以上の言葉があれば added に同じ形で書く（candidate には text と同じものを書く）。なければ空の配列。`
 }
@@ -91,7 +94,9 @@ export async function refineTerms(
   trace?: ChatTrace & { prompt?: string },
   memory?: LevelMemory
 ): Promise<RefineOutput> {
+  const seenWords = memory?.recent(20) ?? []
   const user = [
+    ...(seenWords.length ? [`これまでに出た言葉: ${seenWords.join('、')}`] : []),
     context.length ? `直前の会話:\n${context.join('\n')}` : '直前の会話: なし',
     `今の発言: ${utterance}`,
     `候補: ${candidates.length ? candidates.join('、') : 'なし'}`
@@ -113,15 +118,20 @@ export async function refineTerms(
   const terms: RefinedTerm[] = []
   const seen = new Set<string>()
   const consider = (item: Item, added: boolean) => {
-    const text = clean(item.text) || clean(item.candidate)
+    const candidate = clean(item.candidate) || clean(item.text)
     const scored = Math.min(4, Math.max(1, Math.round(Number(item.level) || 1)))
-    const level = memory ? memory.settle(text, scored) : scored
-    const ok = text.length >= 2 && text.length <= 30 && !seen.has(text)
-    const kept = ok && level >= min && terms.length < MAX_TERMS
-    judgments.push({ candidate: clean(item.candidate) || text, text, level, added, kept })
-    if (!ok) return
-    seen.add(text)
-    if (kept) terms.push({ text, reading: hiraganaOnly(item.reading) })
+    // 誤ってつながった言葉は、AI が「、」や空白で区切って返す
+    const parts = (clean(item.text) || candidate).split(/[\s、,]+/).filter(Boolean)
+    for (const text of parts) {
+      const level = memory ? memory.settle(text, scored) : scored
+      const ok = text.length >= 2 && text.length <= 30 && !seen.has(text)
+      const kept = ok && level >= min && terms.length < MAX_TERMS
+      judgments.push({ candidate, text, level, added, kept })
+      if (!ok) continue
+      seen.add(text)
+      // 区切ったときは読みがどこまでか分からないので、辞書の読みにまかせる
+      if (kept) terms.push({ text, reading: parts.length === 1 ? hiraganaOnly(item.reading) : '' })
+    }
   }
   for (const item of out.candidates ?? []) consider(item, false)
   for (const item of (out.added ?? []).slice(0, MAX_ADDED[amount])) consider(item, true)
@@ -130,25 +140,34 @@ export async function refineTerms(
 
 /**
  * 同じ言葉の段階が発言ごとにぶれる（「プログラム」が1になったり3になったり）ので、
- * 一度付いたいちばん高い段階を覚えておき、それより下げない。一度出した言葉が
- * 次の発言で消えて見えることもなくなる。
+ * 言葉ごとにこれまでの判定を覚えておき、いちばん多かった段階を使う（同数なら先に付いたほう）。
+ * 覚えた言葉は、聞き間違いを直す手がかりとして AI にも渡す。
  */
 export class LevelMemory {
-  private levels = new Map<string, number>()
+  private words = new Map<string, { text: string; counts: number[]; first: number }>()
 
   constructor(private readonly limit = 1000) {}
 
   settle(text: string, level: number): number {
     const key = text.replace(/\s+/g, '').toLowerCase()
-    const settled = Math.max(level, this.levels.get(key) ?? 0)
-    this.levels.delete(key)
-    this.levels.set(key, settled)
-    if (this.levels.size > this.limit) this.levels.delete(this.levels.keys().next().value!)
-    return settled
+    const entry = this.words.get(key) ?? { text, counts: [0, 0, 0, 0, 0], first: level }
+    entry.counts[level]++
+    // 最近出た順に並べ直す
+    this.words.delete(key)
+    this.words.set(key, entry)
+    if (this.words.size > this.limit) this.words.delete(this.words.keys().next().value!)
+    let best = entry.first
+    for (let l = 1; l <= 4; l++) if (entry.counts[l] > entry.counts[best]) best = l
+    return best
+  }
+
+  /** 最近出た言葉（新しい順） */
+  recent(n: number): string[] {
+    return [...this.words.values()].slice(-n).reverse().map((e) => e.text)
   }
 
   clear(): void {
-    this.levels.clear()
+    this.words.clear()
   }
 }
 

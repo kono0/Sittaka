@@ -118,14 +118,34 @@ describe('refineTerms', () => {
     expect((await refineTerms(client, [], 'x', ['CPU'])).terms).toEqual([{ text: 'CPU', reading: 'しーぴーゆー' }])
   })
 
-  it('does not lower a level once given, so the same word stays steady', async () => {
+  it('settles each word on its most common level so it stays steady', async () => {
     let level = 3
     const client = fakeClient(() => ({ candidates: [item('プログラム', level)], added: [] }))
     const memory = new LevelMemory()
     const run = async () => (await refineTerms(client, [], 'x', ['プログラム'], 'normal', undefined, memory)).judgments[0]
     expect((await run()).kept).toBe(true)
     level = 1
+    // 1回ずつなら先に付いた段階のまま
     expect(await run()).toMatchObject({ level: 3, kept: true })
+    expect(await run()).toMatchObject({ level: 1, kept: false })
+  })
+
+  it('splits words the AI separates and passes earlier words as hints', async () => {
+    const prompts: string[] = []
+    const client: Parameters<typeof refineTerms>[0] = {
+      json: async <T>(_m: unknown, messages: { content: string }[]) => {
+        prompts.push(messages[1].content)
+        return { candidates: [item('ディオゲネス古代ギリシャ', 4, 'ディオゲネス、古代ギリシャ', 'x')], added: [] } as T
+      }
+    } as never
+    const memory = new LevelMemory()
+    const out = await refineTerms(client, [], 'x', ['ディオゲネス古代ギリシャ'], 'normal', undefined, memory)
+    expect(out.terms).toEqual([
+      { text: 'ディオゲネス', reading: '' },
+      { text: '古代ギリシャ', reading: '' }
+    ])
+    await refineTerms(client, [], 'x', [], 'normal', undefined, memory)
+    expect(prompts[1]).toContain('これまでに出た言葉: 古代ギリシャ、ディオゲネス')
   })
 })
 

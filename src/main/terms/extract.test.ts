@@ -49,6 +49,8 @@ describe('extractTerms', () => {
     expect(nouns('全て自分でコードを書く')).toEqual(['コード'])
     expect(nouns('レジスタへ移動CPUでデータを処理')).toEqual(['レジスタ', '移動', 'CPU', 'データ', '処理'])
     // つながっている専門用語はそのまま
+    expect(nouns('その男の名はディオゲネス古代ギリシャの哲学者である')).toEqual(['ディオゲネス', '古代ギリシャ', '哲学者'])
+    expect(nouns('ドイツの哲学者ペータース・ヴィンが')).toEqual(['ドイツ', '哲学者', 'ペータース・ヴィン'])
     expect(nouns('プリントFで出力')).toEqual(['プリントF', '出力'])
     expect(nouns('プログラミング学習とAPI連携')).toEqual(['プログラミング学習', 'API', '連携'])
   })

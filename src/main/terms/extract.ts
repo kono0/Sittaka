@@ -38,6 +38,20 @@ const LATIN = /[A-Za-zＡ-Ｚａ-ｚ]/
 const scriptBreak = (a: string, b: string) =>
   (LATIN.test(a) && !LATIN.test(b) && KANJI.test(b)) || (LATIN.test(b) && !LATIN.test(a) && KANJI.test(a))
 
+/**
+ * 句読点のない文字起こしでは、外国の人名などの辞書にないカタカナ語が前後の言葉と
+ * つながってしまう（「ディオゲネス古代ギリシャ」「哲学者ペーター」）。
+ * 辞書にないカタカナ語のあとに漢字の普通名詞が来たとき、「〜者」「〜家」のあとに
+ * 辞書にないカタカナ語が来たときは区切る。「リトライ処理」（サ変名詞）はつなぐ。
+ */
+const isUnknownKatakana = (t: Token) => t.word_type === 'UNKNOWN' && KATAKANA_WORD.test(t.surface_form)
+const unknownBreak = (prev: Token, t: Token) =>
+  (isUnknownKatakana(prev) &&
+    t.word_type !== 'UNKNOWN' &&
+    (t.pos_detail_1 === '一般' || t.pos_detail_1 === '固有名詞') &&
+    KANJI.test(t.surface_form)) ||
+  (isUnknownKatakana(t) && prev.pos_detail_1 === '接尾' && KANJI.test(prev.surface_form))
+
 // カタカナでも、ほとんどの人が知っている言葉
 const COMMON_KATAKANA = new Set(
   (
@@ -97,7 +111,7 @@ function nounChunks(tokens: Token[]): Token[][] {
       // 接尾辞（「性」「化」など）からは言葉を始めない
       if (cur.length === 0 && t.pos_detail_1 === '接尾') continue
       const prev = cur[cur.length - 1]
-      if (prev && prev.pos !== '接頭詞' && scriptBreak(prev.surface_form, t.surface_form)) flush()
+      if (prev && prev.pos !== '接頭詞' && (scriptBreak(prev.surface_form, t.surface_form) || unknownBreak(prev, t))) flush()
       cur.push(t)
     } else if (isPrefix) {
       if (cur.length) flush()

@@ -297,9 +297,9 @@ function addLine(line: TranscriptLine): void {
   void findTermsForLine(line, body)
 }
 
-/** 直近の会話（AI に渡す文脈）。話し手を付けて最大4発話 */
+/** 直近の会話（AI に渡す文脈）。話し手を付けて最大7発話（今の発言を含む） */
 function recentContext(): string[] {
-  return history.slice(-4).map((l) => `${SPEAKER_LABEL[l.speaker]}: ${l.text}`)
+  return history.slice(-7).map((l) => `${SPEAKER_LABEL[l.speaker]}: ${l.text}`)
 }
 
 async function findTermsForLine(line: TranscriptLine, body: HTMLElement): Promise<void> {
