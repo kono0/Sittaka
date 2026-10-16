@@ -1,3 +1,6 @@
+import type { Transcript } from '../main/asr/protocol'
+export type { AsrToken, Transcript } from '../main/asr/protocol'
+
 export interface WordbookEntry {
   word: string
   reading?: string
@@ -37,7 +40,7 @@ declare global {
     /** main プロセス側で動く ReazonSpeech */
     asr: {
       load(onProgress: (p: { percent: number | null; message: string }) => void): Promise<void>
-      transcribe(samples: Float32Array): Promise<string>
+      transcribe(samples: Float32Array): Promise<Transcript>
       stop(): Promise<void>
     }
     /** 発話から調べる候補の言葉を抜き出す */

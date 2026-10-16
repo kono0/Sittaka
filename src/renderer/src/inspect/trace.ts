@@ -1,4 +1,4 @@
-import type { Extracted, RefineResult } from '../../../preload/api'
+import type { AsrToken, Extracted, RefineResult } from '../../../preload/api'
 import type { Speaker } from '../audio/capture'
 
 /** 1つの発言が、文字起こしから最終的な言葉になるまでの記録（検証タブ用） */
@@ -9,7 +9,7 @@ export interface Trace {
   speaker: Speaker
   text: string
   /** 文字起こしの遅れと処理時間（手入力のときはなし） */
-  asr?: { latencyMs: number; inferenceMs: number; audioMs: number }
+  asr?: { latencyMs: number; inferenceMs: number; audioMs: number; tokens?: AsrToken[] }
   extracted?: Extracted
   ai?: RefineResult
   /** 最終的に「聞こえた言葉」に並べた言葉 */
@@ -96,4 +96,24 @@ export function totals(traces: Trace[]): Totals {
     aiAvgMs: aiCalls ? aiMs / aiCalls : null,
     final
   }
+}
+
+/**
+ * 言葉が文字起こしのどこに出てくるかを探し、その範囲でいちばん低い確率を返す。
+ * 聞き間違いはここが低くなるはず、という見立てを確かめるために使う。
+ * 見つからない（AI が表記を直した）ときは null。
+ */
+export function wordConfidence(tokens: AsrToken[] | undefined, word: string): number | null {
+  if (!tokens?.length || !word) return null
+  let joined = ''
+  const owner: number[] = []
+  tokens.forEach((t, i) => {
+    joined += t.text
+    for (let k = 0; k < t.text.length; k++) owner.push(i)
+  })
+  const at = joined.indexOf(word)
+  if (at < 0) return null
+  let min = 1
+  for (let k = at; k < at + word.length; k++) min = Math.min(min, tokens[owner[k]].p)
+  return min
 }

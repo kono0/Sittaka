@@ -12,7 +12,7 @@ function fakeEngine(results: Record<number, string>, log: number[]): Transcriber
       await new Promise((r) => setTimeout(r, 5))
       const text = results[audio.length]
       if (text === 'ERR') throw new Error('boom')
-      return text
+      return { text }
     }
   }
 }

@@ -1,4 +1,4 @@
-import type { LoadProgress, Transcriber } from './transcriber'
+import type { LoadProgress, Transcriber, Transcript } from './transcriber'
 import type { WorkerRequest, WorkerResponse } from './whisper.worker'
 
 export interface WhisperPreset {
@@ -76,12 +76,13 @@ export class LocalWhisperTranscriber implements Transcriber {
     })
   }
 
-  transcribe(audio: Float32Array): Promise<string> {
+  async transcribe(audio: Float32Array): Promise<Transcript> {
     const id = this.nextId++
-    return new Promise((resolve, reject) => {
+    const text = await new Promise<string>((resolve, reject) => {
       this.pending.set(id, { resolve, reject })
       this.send({ type: 'transcribe', id, audio }, [audio.buffer])
     })
+    return { text }
   }
 
   dispose(): void {

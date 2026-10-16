@@ -7,6 +7,6 @@ declare module 'sherpa-onnx-node' {
     constructor(config: unknown)
     createStream(): OfflineStream
     decode(stream: OfflineStream): void
-    getResult(stream: OfflineStream): { text: string }
+    getResult(stream: OfflineStream): { text: string; tokens?: string[]; ys_log_probs?: number[] }
   }
 }

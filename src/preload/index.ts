@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import type { Transcript } from '../main/asr/protocol'
 
 contextBridge.exposeInMainWorld('appInfo', {
   platform: process.platform
@@ -10,7 +11,7 @@ contextBridge.exposeInMainWorld('asr', {
     ipcRenderer.on('asr:progress', listener)
     return ipcRenderer.invoke('asr:load').finally(() => ipcRenderer.removeListener('asr:progress', listener))
   },
-  transcribe: (samples: Float32Array): Promise<string> => ipcRenderer.invoke('asr:transcribe', samples),
+  transcribe: (samples: Float32Array): Promise<Transcript> => ipcRenderer.invoke('asr:transcribe', samples),
   stop: (): Promise<void> => ipcRenderer.invoke('asr:stop')
 })
 

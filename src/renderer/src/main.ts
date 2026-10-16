@@ -305,7 +305,7 @@ function recentContext(): string[] {
 async function findTermsForLine(line: TranscriptLine, body: HTMLElement): Promise<void> {
   const context = recentContext()
   const { trace, terms } = await findTerms(line.text, line.speaker, context.slice(0, -1), amount)
-  trace.asr = { latencyMs: line.latencyMs, inferenceMs: line.inferenceMs, audioMs: line.audioMs }
+  trace.asr = { latencyMs: line.latencyMs, inferenceMs: line.inferenceMs, audioMs: line.audioMs, tokens: line.tokens }
   inspector.add(trace)
   if (trace.ai?.status === 'error') showAiError(trace.ai.error)
   if (trace.error) console.error('言葉の抜き出しに失敗しました', trace.error)

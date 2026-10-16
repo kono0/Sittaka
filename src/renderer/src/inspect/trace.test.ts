@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compare, totals, type Trace } from './trace'
+import { compare, totals, wordConfidence, type Trace } from './trace'
 
 const base = { at: '', source: 'call' as const, speaker: 'other' as const, decidedBy: 'ai' as const }
 
@@ -57,5 +57,20 @@ describe('totals', () => {
       aiAvgMs: 300,
       final: 2
     })
+  })
+})
+
+describe('wordConfidence', () => {
+  const tokens = [..."次はJDPです"].map((text, i) => ({ text, p: [0.9, 0.9, 0.3, 0.8, 0.7, 1, 1][i] }))
+
+  it('returns the lowest probability inside the word', () => {
+    expect(wordConfidence(tokens, 'JDP')).toBe(0.3)
+    expect(wordConfidence(tokens, 'です')).toBe(1)
+  })
+
+  it('handles multi-character tokens and missing words', () => {
+    expect(wordConfidence([{ text: 'GDP', p: 0.4 }, { text: 'は', p: 1 }], 'DP')).toBe(0.4)
+    expect(wordConfidence(tokens, 'GDP')).toBeNull()
+    expect(wordConfidence(undefined, 'JDP')).toBeNull()
   })
 })

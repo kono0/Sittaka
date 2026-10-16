@@ -857,6 +857,27 @@ button.danger-fill {
   background: var(--other);
   color: #fff;
 }
+/* 音声認識の自信の度合い（検証タブ） */
+.pill .conf {
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+}
+.pill .conf.low {
+  color: var(--danger);
+  font-weight: 600;
+}
+.mono .ch.mid {
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 3px;
+}
+.mono .ch.low {
+  text-decoration: underline solid var(--danger);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
 .mini #status {
   display: none;
 }

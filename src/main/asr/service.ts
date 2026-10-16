@@ -2,9 +2,9 @@ import { cpus } from 'node:os'
 import { join } from 'node:path'
 import { app, ipcMain, utilityProcess, type UtilityProcess, type WebContents } from 'electron'
 import { ensureModel } from './model'
-import type { AsrRequest, AsrResponse } from './protocol'
+import type { AsrRequest, AsrResponse, Transcript } from './protocol'
 
-type Pending = { resolve(text: string): void; reject(err: Error): void }
+type Pending = { resolve(t: Transcript): void; reject(err: Error): void }
 
 /** ReazonSpeech を別プロセスで動かし、画面からの依頼を IPC で受ける */
 class ReazonSpeechService {
@@ -21,7 +21,7 @@ class ReazonSpeechService {
     return this.loading
   }
 
-  transcribe(samples: Float32Array): Promise<string> {
+  transcribe(samples: Float32Array): Promise<Transcript> {
     const child = this.child
     if (!child) return Promise.reject(new Error('エンジンが起動していません'))
     const id = this.nextId++
@@ -49,7 +49,7 @@ class ReazonSpeechService {
     await new Promise<void>((resolve, reject) => {
       child.on('message', (msg: AsrResponse) => {
         if (msg.type === 'ready') resolve()
-        else if (msg.type === 'result') this.settle(msg.id, (p) => p.resolve(msg.text))
+        else if (msg.type === 'result') this.settle(msg.id, (p) => p.resolve(msg.transcript))
         else if (msg.id === undefined) reject(new Error(msg.message))
         else this.settle(msg.id, (p) => p.reject(new Error(msg.message)))
       })

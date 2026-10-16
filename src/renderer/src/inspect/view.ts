@@ -1,4 +1,4 @@
-import { totals, type Trace } from './trace'
+import { totals, wordConfidence, type Trace } from './trace'
 
 type Judgment = Extract<NonNullable<Trace['ai']>, { status: 'ok' }>['judgments'][number]
 
@@ -140,14 +140,17 @@ export class Inspector {
     details.append(
       stage(
         '1. 文字起こし',
-        el('p', 'mono', t.text),
+        confidenceText(t),
         t.asr
           ? el(
               'p',
               'note',
               `遅れ ${sec(t.asr.latencyMs)} ・ 処理 ${sec(t.asr.inferenceMs)}（音声 ${sec(t.asr.audioMs)}）・ ${t.text.length}文字`
             )
-          : el('p', 'note', '手入力（文字起こしは通していません）')
+          : el('p', 'note', '手入力（文字起こしは通していません）'),
+        ...(t.asr?.tokens
+          ? [el('p', 'note', '下線 = 音声認識の自信が低い文字（点線 80%未満・赤 50%未満）。文字にカーソルを乗せると確率が出ます')]
+          : [])
       )
     )
 
@@ -226,7 +229,11 @@ export class Inspector {
         for (const j of items) {
           const p = el('span', `pill ${cls(j)}`)
           p.append(j.candidate === j.text ? j.text : `${j.candidate} → ${j.text}`, level(j.level))
-          p.title = `${LEVEL[j.level] ?? ''}${j.kept ? '（残した）' : '（外した）'}`
+          const conf = wordConfidence(t.asr?.tokens, j.candidate)
+          if (conf !== null) p.append(el('span', `conf ${confClass(conf)}`, `${Math.round(conf * 100)}%`))
+          p.title = `${LEVEL[j.level] ?? ''}${j.kept ? '（残した）' : '（外した）'}${
+            conf === null ? '' : `・音声認識の自信 ${Math.round(conf * 100)}%（言葉の中でいちばん低い文字）`
+          }`
           chips.append(p)
         }
         if (!items.length) chips.append(el('span', 'note', 'なし'))
@@ -289,4 +296,22 @@ function fold(title: string, text: string): HTMLElement {
 
 function sec(ms: number): string {
   return `${(ms / 1000).toFixed(1)}秒`
+}
+
+const confClass = (p: number) => (p < 0.5 ? 'low' : p < 0.8 ? 'mid' : 'high')
+
+/** 文字起こしを、文字ごとの自信の度合いで印を付けて表示する */
+function confidenceText(t: Trace): HTMLElement {
+  const p = el('p', 'mono')
+  const tokens = t.asr?.tokens
+  if (!tokens?.length) {
+    p.textContent = t.text
+    return p
+  }
+  for (const tok of tokens) {
+    const s = el('span', `ch ${confClass(tok.p)}`, tok.text)
+    s.title = `${Math.round(tok.p * 100)}%`
+    p.append(s)
+  }
+  return p
 }
