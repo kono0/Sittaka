@@ -27,6 +27,7 @@ function createPanel(): BrowserWindow {
     frame: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#15171b' : '#f5f6f8',
     title: 'Talking Word',
+    icon: join(__dirname, '../../resources/icon.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

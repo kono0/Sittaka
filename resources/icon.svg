@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a86f5"/>
+      <stop offset="1" stop-color="#2f62d8"/>
+    </linearGradient>
+  </defs>
+  <!-- 背景 -->
+  <rect x="2" y="2" width="96" height="96" rx="22" fill="url(#bg)"/>
+  <!-- カンペ（少し傾いたメモ） -->
+  <g transform="rotate(-8 50 50)">
+    <rect x="22" y="24" width="56" height="52" rx="6" fill="#ffffff"/>
+    <path d="M32 40h36M32 51h26M32 62h31" fill="none" stroke="#2f6fec" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <!-- こっそり見る目印 -->
+  <circle cx="78" cy="76" r="10" fill="#ffffff"/>
+  <circle cx="78" cy="76" r="4" fill="#2f6fec"/>
+</svg>
