@@ -1,4 +1,5 @@
 import type { WordbookEntry } from '../../../preload/api'
+import { confirmDialog } from '../ui/confirm'
 
 /** 表示中のフォルダ。ALL はすべて、NONE は未分類 */
 const ALL = Symbol('all')
@@ -116,9 +117,17 @@ export class WordbookView {
           )
         )
       )
-      const remove = confirmButton('フォルダを消す', '中の言葉は未分類に戻ります。消す？', () =>
-        this.run(() => window.wordbook.deleteFolder(folder))
-      )
+      const remove = button('フォルダを消す', async () => {
+        if (
+          await confirmDialog(
+            `フォルダ「${folder}」を削除しますか？`,
+            '削除する',
+            '中の言葉は消えずに「未分類」に戻ります。'
+          )
+        ) {
+          await this.run(() => window.wordbook.deleteFolder(folder))
+        }
+      })
       items.push(rename, remove)
     }
     const select = button(this.selecting ? '選ぶのをやめる' : '選ぶ', () => {
@@ -169,7 +178,11 @@ export class WordbookView {
     if (!this.selecting) {
       const remove = el('button', 'remove', '×') as HTMLButtonElement
       remove.title = '単語帳から削除'
-      remove.addEventListener('click', () => void this.run(() => window.wordbook.remove([e.word])))
+      remove.addEventListener('click', async () => {
+        if (await confirmDialog(`「${e.word}」を単語帳から削除しますか？`, '削除する')) {
+          await this.run(() => window.wordbook.remove([e.word]))
+        }
+      })
       li.append(remove)
     }
     return li
@@ -209,9 +222,12 @@ export class WordbookView {
         void this.run(() => window.wordbook.move(words, v === '\u0000none' ? null : v), words)
       }
     })
-    const remove = confirmButton('削除', `${words.length}語を消す？`, () =>
-      this.run(() => window.wordbook.remove(words), words)
-    )
+    const remove = button('削除', async () => {
+      const preview = words.slice(0, 5).join('、') + (words.length > 5 ? ` ほか${words.length - 5}語` : '')
+      if (await confirmDialog(`${words.length}語を単語帳から削除しますか？`, '削除する', preview)) {
+        await this.run(() => window.wordbook.remove(words), words)
+      }
+    })
     remove.classList.add('danger')
     remove.disabled = words.length === 0
     this.barEl.replaceChildren(
@@ -250,28 +266,6 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
   const b = el('button', '', label) as HTMLButtonElement
   b.type = 'button'
   b.addEventListener('click', onClick)
-  return b
-}
-
-/** 1回目で確認の文に変わり、もう一度押すと実行する（3秒で元に戻る） */
-function confirmButton(label: string, ask: string, onConfirm: () => void): HTMLButtonElement {
-  let armed = false
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const b = button(label, () => {
-    if (armed) {
-      clearTimeout(timer)
-      onConfirm()
-      return
-    }
-    armed = true
-    b.textContent = ask
-    b.classList.add('armed')
-    timer = setTimeout(() => {
-      armed = false
-      b.textContent = label
-      b.classList.remove('armed')
-    }, 3000)
-  })
   return b
 }
 

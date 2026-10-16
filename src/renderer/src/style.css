@@ -288,6 +288,9 @@ main {
   background: var(--chip-bg);
   box-shadow: var(--shadow);
   text-align: left;
+}
+.chip.fresh,
+.card.fresh {
   animation: appear 240ms ease-out;
 }
 .chip:hover {
@@ -340,7 +343,6 @@ main {
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
-  animation: appear 240ms ease-out;
 }
 .card .word {
   font-weight: 600;
@@ -612,9 +614,47 @@ button.danger {
   border-color: var(--danger);
   color: var(--danger);
 }
-button.armed {
+/* 削除の確認 */
+dialog.confirm {
+  width: min(320px, calc(100vw - 32px));
+  padding: 18px 18px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+dialog.confirm::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+.confirm-title {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+.confirm-detail {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.confirm-actions button {
+  width: auto;
+  padding: 5px 14px;
+}
+button.danger-fill {
+  border-color: var(--danger);
   background: var(--danger);
   color: #fff;
+  font-weight: 600;
+}
+.mini-view .paused-badge {
+  position: static;
+  margin-left: 6px;
 }
 
 /* 設定 */
@@ -845,4 +885,24 @@ button.armed {
 .wb-bar select {
   flex: 1;
   min-width: 0;
+}
+.view h2 {
+  position: relative;
+}
+/* 出ても一覧の位置が動かないよう、行の右端に重ねて出す */
+.paused-badge {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.paused-badge[hidden] {
+  display: none;
 }

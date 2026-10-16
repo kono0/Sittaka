@@ -31,12 +31,15 @@
     <section class="mini-view">
       <div id="mini-words" class="chips big" data-empty="専門用語が聞こえるとここに出ます"></div>
       <div id="mini-kept"></div>
-      <p class="hint">Ctrl+Alt+1〜3 でキープ ・ Ctrl+Alt+M で広げる</p>
+      <p class="hint">Ctrl+Alt+1〜3 でキープ ・ Ctrl+Alt+M で広げる <span class="paused-badge" hidden></span></p>
     </section>
 
     <main>
       <section class="view board" data-view="board">
-        <h2>聞こえた言葉 <span class="hint">押すか Ctrl+Alt+数字 でキープ</span></h2>
+        <h2>
+          聞こえた言葉 <span class="hint">押すか Ctrl+Alt+数字 でキープ</span>
+          <span class="paused-badge" hidden></span>
+        </h2>
         <div id="words" class="chips" data-empty="会話の中の専門用語やカタカナ語がここに流れてきます"></div>
         <h2>キープ</h2>
         <div id="kept" class="cards" data-empty="キープした言葉が、意味と一緒にここに並びます"></div>

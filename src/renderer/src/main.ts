@@ -106,7 +106,8 @@ setMode(mode)
 $<HTMLDetailsElement>('log').addEventListener('toggle', () => (transcript.scrollTop = transcript.scrollHeight))
 
 window.hotkeys.onKeep((n) => {
-  const w = board.recent()[n - 1]
+  // 画面に見えている並びの N 番目（並びを止めている間もずれないように）
+  const w = shownWords[n - 1]
   if (w) keepWord(w.text)
 })
 
@@ -361,21 +362,65 @@ function highlight(el: HTMLElement, text: string, words: string[]): void {
   )
 }
 
+/**
+ * 言葉の一覧にマウスを乗せている間は並びを止める（流れていって押しにくいため）。
+ * その間に来た言葉は数だけ出し、マウスを離したらまとめて反映する。
+ */
+let shownWords: BoardWord[] = []
+const pausedBadges = [...document.querySelectorAll<HTMLElement>('.paused-badge')]
+// 描き直すと :hover やマウスの出入りのイベントが一瞬外れるので、マウスの位置で判定する
+let pointer: { x: number; y: number } | null = null
+const inside = (el: HTMLElement) => {
+  if (!pointer || el.offsetParent === null) return false
+  // 上の表示が増えて一覧が少しずれても止まったままになるよう、周りに余裕を持たせる
+  const r = el.getBoundingClientRect()
+  const m = 24
+  return pointer.x >= r.left - m && pointer.x <= r.right + m && pointer.y >= r.top - m && pointer.y <= r.bottom + m
+}
+const isPaused = () => inside(wordsEl) || inside(miniWordsEl)
+let wasPaused = false
+document.addEventListener('mousemove', (e) => {
+  pointer = { x: e.clientX, y: e.clientY }
+  if (wasPaused && !isPaused()) renderBoard()
+})
+document.documentElement.addEventListener('mouseleave', () => {
+  pointer = null
+  if (wasPaused) renderBoard()
+})
+
 function renderBoard(): void {
   const kept = board.kept().reverse()
   const recent = board.recent()
+  const paused = isPaused()
+  wasPaused = paused
+  if (paused) {
+    // キープした・消えた言葉だけ外し、並びはそのまま
+    shownWords = shownWords.filter((w) => w.keptAt === null && board.get(w.text) === w)
+  } else {
+    shownWords = recent
+  }
+  const shown = new Set(shownWords)
+  const waiting = recent.filter((w) => !shown.has(w)).length
+  for (const b of pausedBadges) {
+    b.hidden = !paused
+    b.textContent = waiting ? `止めています・新しい言葉 ${waiting}` : '止めています'
+  }
   // 新しくキープしたものほど上に
   keptEl.replaceChildren(...kept.map(card))
-  wordsEl.replaceChildren(...recent.map((w, i) => chip(w, i < HOTKEY_SLOTS ? i + 1 : null, () => keepWord(w.text))))
+  wordsEl.replaceChildren(...shownWords.map((w, i) => chip(w, i < HOTKEY_SLOTS ? i + 1 : null, () => keepWord(w.text))))
   // 小さい表示: 直近の言葉3つと、最後にキープした言葉だけ
-  miniWordsEl.replaceChildren(...recent.slice(0, MINI_SLOTS).map((w, i) => chip(w, i + 1, () => keepWord(w.text))))
+  miniWordsEl.replaceChildren(...shownWords.slice(0, MINI_SLOTS).map((w, i) => chip(w, i + 1, () => keepWord(w.text))))
   miniKeptEl.replaceChildren(...kept.slice(0, 1).map(card))
 }
+
+/** 出てきたばかりの言葉・キープしたばかりの言葉だけ、ふわっと出す（描き直すたびに全部が動かないように） */
+const FRESH_MS = 1000
+const isFresh = (t: number | null) => t !== null && Date.now() - t < FRESH_MS
 
 /** キープした言葉。意味が届いたら下に出す */
 function card(w: BoardWord): HTMLElement {
   const el = document.createElement('div')
-  el.className = 'card'
+  el.className = `card ${isFresh(w.keptAt) ? 'fresh' : ''}`
   const m = w.meaning
   const word = document.createElement('span')
   word.className = 'word'
@@ -416,7 +461,7 @@ async function renderSettings(): Promise<void> {
 
 function chip(w: BoardWord, num: number | null, onClick: () => void): HTMLButtonElement {
   const b = document.createElement('button')
-  b.className = `chip ${w.speaker}`
+  b.className = `chip ${w.speaker} ${isFresh(w.lastSeen) ? 'fresh' : ''}`
   b.title = `${SPEAKER_LABEL[w.speaker]}が言った言葉${w.count > 1 ? `（${w.count}回）` : ''}`
   if (num !== null) {
     const n = document.createElement('span')
