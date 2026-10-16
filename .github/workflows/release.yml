@@ -1,10 +1,12 @@
-# v0.2.0 のようなタグを push すると、Windows 用インストーラーを作って GitHub の Releases に下書きとして載せる。
-# 下書きを「公開」にすると、利用者のアプリが自動アップデートで拾う。
+# v0.2.0 のようなタグを push するか、Actions の画面で「Run workflow」を押すと、
+# package.json の version で Windows 用インストーラーを作り、GitHub の Releases に下書きとして載せる。
+# 下書きを「公開」にすると、そのときに同じ名前のタグが作られ、利用者のアプリが自動アップデートで拾う。
 name: Release
 
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write

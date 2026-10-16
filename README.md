@@ -112,7 +112,7 @@ npm run dist       # Windows 用インストーラーを dist/ に作る（Windo
 ### 配布（リリース）
 
 1. `package.json` の `version` を上げてコミットする
-2. `git tag v0.2.0 && git push origin v0.2.0` のように、同じ番号のタグを push する
+2. GitHub の Actions タブで「Release」を選び「Run workflow」を押す（`v0.2.0` のようなタグを push してもよい）
 3. GitHub Actions が Windows 用インストーラーを作り、Releases に下書きとして載せる
 4. Releases で下書きを確かめて「公開」にすると、ダウンロードできるようになり、入れている人のアプリも次の起動で自動アップデートする
 
