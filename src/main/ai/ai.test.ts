@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError, describeError, parseJson, SarashinaClient, type ChatClient, type Model } from './chat'
 import { explainTerm } from './explain'
-import { refineTerms } from './refine'
+import { LevelMemory, refineTerms } from './refine'
 
 function okResponse(content: string): Response {
   return new Response(JSON.stringify({ choices: [{ message: { role: 'assistant', content } }] }), { status: 200 })
@@ -111,6 +111,21 @@ describe('refineTerms', () => {
     // 段階は 1〜4 に収める
     expect(out.judgments[4].level).toBe(4)
     expect(out.judgments.filter((j) => j.added)).toHaveLength(3)
+  })
+
+  it('turns katakana readings into hiragana', async () => {
+    const client = fakeClient(() => ({ candidates: [item('CPU', 3, 'CPU', 'シーピーユー')], added: [] }))
+    expect((await refineTerms(client, [], 'x', ['CPU'])).terms).toEqual([{ text: 'CPU', reading: 'しーぴーゆー' }])
+  })
+
+  it('does not lower a level once given, so the same word stays steady', async () => {
+    let level = 3
+    const client = fakeClient(() => ({ candidates: [item('プログラム', level)], added: [] }))
+    const memory = new LevelMemory()
+    const run = async () => (await refineTerms(client, [], 'x', ['プログラム'], 'normal', undefined, memory)).judgments[0]
+    expect((await run()).kept).toBe(true)
+    level = 1
+    expect(await run()).toMatchObject({ level: 3, kept: true })
   })
 })
 

@@ -6,7 +6,7 @@ import { describeError, SarashinaClient, type ChatTrace } from './chat'
 import { explainTerm } from './explain'
 import { readingOf } from '../terms/extract'
 import { getTokenizer } from '../terms/tokenizer'
-import { refineTerms, type Amount, type Judgment, type RefinedTerm } from './refine'
+import { LevelMemory, refineTerms, type Amount, type Judgment, type RefinedTerm } from './refine'
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
@@ -27,6 +27,7 @@ export function registerAiIpc(): void {
     client = key ? new SarashinaClient(key, (url, init) => net.fetch(url, init)) : null
     return client
   }
+  const levels = new LevelMemory()
   const wordbook = new Wordbook(join(app.getPath('userData'), 'wordbook.json'))
 
   ipcMain.handle('settings:get', () => ({ hasSarashinaKey: getSarashinaKey() !== null }))
@@ -49,7 +50,7 @@ export function registerAiIpc(): void {
       if (waitMs > 3000) return { status: 'busy', waitMs }
       const trace: ChatTrace & { prompt?: string } = {}
       try {
-        const { terms, judgments } = await refineTerms(c, context, utterance, candidates, amount, trace)
+        const { terms, judgments } = await refineTerms(c, context, utterance, candidates, amount, trace, levels)
         return {
           status: 'ok',
           terms: await withDictionaryReadings(terms),

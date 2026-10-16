@@ -64,12 +64,15 @@ function systemPrompt(): string {
 - text: 正しい表記。会話の流れから見て漢字の変換が間違っていれば直す。区切りを誤ってつないだ言葉なら、中心になる言葉に切り直す
 - reading: text の読みをひらがなで（英字の略語も、例: KPI → けーぴーあい）
 - level: 次の4段階
-  1 = だれでも日常的に使う言葉（今日、文字、確認、両方、数字）
-  2 = 普通の言葉だが、この会話の分野では決まった意味で使われている（プログラミングの話での「実行」「表示」など）
-  3 = その分野の専門用語・業界用語・カタカナ語（変数、代入、スコープ、アンダースコア、リードタイム）
+  1 = だれでも日常的に使う言葉。どの分野の会話でも普通に出てくる言葉はここ（今日、文字、確認、両方、数字、特徴、説明、画面、時間、結果、自分、理屈）
+  2 = 普通の言葉だが、この分野では日常と違う決まった意味で使われている（プログラミングの話での「実行」「引数」、会計の話での「資産」など）。日常と同じ意味なら 1
+  3 = その分野の専門用語・業界用語・カタカナ語（変数、代入、スコープ、コンパイラ、リードタイム）
   4 = 一般の人はまず知らない専門用語・略語・難しい熟語（冪等性、KPI、担保、デューデリジェンス）
 
-同じ言葉が前の発言で出ていても、毎回同じ基準で判定してください。
+迷ったら低いほうにしてください。同じ言葉が前の発言で出ていても、毎回同じ基準で判定してください。
+
+音声認識の聞き間違いは、会話の分野から考えて正しい言葉に直してください（例: プログラミングの話での「資源語」「地理言語」→「C言語」、「プリントエフ」→「printf」）。直した言葉は直したあとの言葉で level を付けます。
+英字の言葉の途中に空白を入れないでください（「Frin tf」ではなく「printf」）。
 
 「今の発言」の中に、候補から漏れた level 3 以上の言葉があれば added に同じ形で書く（candidate には text と同じものを書く）。なければ空の配列。`
 }
@@ -85,7 +88,8 @@ export async function refineTerms(
   utterance: string,
   candidates: string[],
   amount: Amount = 'normal',
-  trace?: ChatTrace & { prompt?: string }
+  trace?: ChatTrace & { prompt?: string },
+  memory?: LevelMemory
 ): Promise<RefineOutput> {
   const user = [
     context.length ? `直前の会話:\n${context.join('\n')}` : '直前の会話: なし',
@@ -110,7 +114,8 @@ export async function refineTerms(
   const seen = new Set<string>()
   const consider = (item: Item, added: boolean) => {
     const text = clean(item.text) || clean(item.candidate)
-    const level = Math.min(4, Math.max(1, Math.round(Number(item.level) || 1)))
+    const scored = Math.min(4, Math.max(1, Math.round(Number(item.level) || 1)))
+    const level = memory ? memory.settle(text, scored) : scored
     const ok = text.length >= 2 && text.length <= 30 && !seen.has(text)
     const kept = ok && level >= min && terms.length < MAX_TERMS
     judgments.push({ candidate: clean(item.candidate) || text, text, level, added, kept })
@@ -121,6 +126,30 @@ export async function refineTerms(
   for (const item of out.candidates ?? []) consider(item, false)
   for (const item of (out.added ?? []).slice(0, MAX_ADDED[amount])) consider(item, true)
   return { terms, judgments }
+}
+
+/**
+ * 同じ言葉の段階が発言ごとにぶれる（「プログラム」が1になったり3になったり）ので、
+ * 一度付いたいちばん高い段階を覚えておき、それより下げない。一度出した言葉が
+ * 次の発言で消えて見えることもなくなる。
+ */
+export class LevelMemory {
+  private levels = new Map<string, number>()
+
+  constructor(private readonly limit = 1000) {}
+
+  settle(text: string, level: number): number {
+    const key = text.replace(/\s+/g, '').toLowerCase()
+    const settled = Math.max(level, this.levels.get(key) ?? 0)
+    this.levels.delete(key)
+    this.levels.set(key, settled)
+    if (this.levels.size > this.limit) this.levels.delete(this.levels.keys().next().value!)
+    return settled
+  }
+
+  clear(): void {
+    this.levels.clear()
+  }
 }
 
 interface Item {
@@ -134,8 +163,8 @@ function clean(v: unknown): string {
   return String(v ?? '').trim()
 }
 
-/** 「あlphabet」のように崩れた読みは使わない */
+/** カタカナの読みはひらがなにそろえ、「あlphabet」のように崩れた読みは使わない */
 function hiraganaOnly(v: unknown): string {
-  const s = clean(v)
+  const s = clean(v).replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
   return /^[\p{Script=Hiragana}ー]+$/u.test(s) ? s : ''
 }

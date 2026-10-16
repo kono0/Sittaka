@@ -43,6 +43,16 @@ describe('extractTerms', () => {
     expect(terms('レイテンシとレイテンシの比較')).toEqual(['レイテンシ'])
   })
 
+  it('does not glue unrelated nouns together', () => {
+    const nouns = (s: string) => extractNouns(tokenizer.tokenize(s))
+    expect(nouns('一つ一つ理屈を覚える')).toEqual(['理屈'])
+    expect(nouns('全て自分でコードを書く')).toEqual(['コード'])
+    expect(nouns('レジスタへ移動CPUでデータを処理')).toEqual(['レジスタ', '移動', 'CPU', 'データ', '処理'])
+    // つながっている専門用語はそのまま
+    expect(nouns('プリントFで出力')).toEqual(['プリントF', '出力'])
+    expect(nouns('プログラミング学習とAPI連携')).toEqual(['プログラミング学習', 'API', '連携'])
+  })
+
   it('lists every noun for the AI to judge, including ones the rules skip', () => {
     const nouns = extractNouns(tokenizer.tokenize('この変数のスコープは関数の中だけです田中さん'))
     expect(nouns).toEqual(expect.arrayContaining(['変数', 'スコープ', '関数']))
