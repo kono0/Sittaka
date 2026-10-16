@@ -78,7 +78,7 @@ export class WordbookView {
           const word = e.dataTransfer?.getData('text/plain')
           if (!word) return
           const words = this.selected.has(word) ? [...this.selected] : [word]
-          void this.run(() => window.wordbook.move(words, f === NONE ? null : f))
+          void this.run(() => window.wordbook.move(words, f === NONE ? null : f), words)
         })
       }
       return b
@@ -201,16 +201,16 @@ export class WordbookView {
           nameInput(
             '新しいフォルダの名前',
             '',
-            (name) => this.run(() => window.wordbook.move(words, name)),
+            (name) => this.run(() => window.wordbook.move(words, name), words),
             () => this.drawBar()
           )
         )
       } else if (v) {
-        void this.run(() => window.wordbook.move(words, v === '\u0000none' ? null : v))
+        void this.run(() => window.wordbook.move(words, v === '\u0000none' ? null : v), words)
       }
     })
     const remove = confirmButton('削除', `${words.length}語を消す？`, () =>
-      this.run(() => window.wordbook.remove(words))
+      this.run(() => window.wordbook.remove(words), words)
     )
     remove.classList.add('danger')
     remove.disabled = words.length === 0
@@ -223,11 +223,15 @@ export class WordbookView {
     )
   }
 
-  /** 変更してから描き直す。失敗したら理由を出す */
-  private async run(action: () => Promise<void>): Promise<void> {
+  /**
+   * 変更してから描き直す。失敗したら理由を出す。
+   * done に渡した言葉は、うまくいったら選択から外す（移したあとも選ばれたままにならないように）
+   */
+  private async run(action: () => Promise<void>, done: string[] = []): Promise<void> {
     this.errorEl.textContent = ''
     try {
       await action()
+      for (const w of done) this.selected.delete(w)
     } catch (err) {
       this.errorEl.textContent = (err instanceof Error ? err.message : String(err)).replace(/^.*Error: /, '')
     }
