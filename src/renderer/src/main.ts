@@ -264,6 +264,8 @@ async function start(): Promise<void> {
     if (!running) return
 
     queue = new TranscriptionQueue(engine, addLine, (err) => {
+      // 止めた直後に、処理待ちだった発話がエンジン停止で失敗するのは問題ないので出さない
+      if (!running) return
       status.textContent = `文字起こしエラー: ${err.message}`
     })
     status.textContent = `${engine.label} で聞き取り中`

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4b87f6"/>
+      <stop offset="1" stop-color="#2c63dc"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="96" height="96" rx="22" fill="url(#bg)"/>
+  <!-- 会話の吹き出し -->
+  <path fill="#fff" d="M24 18h44a10 10 0 0 1 10 10v26a10 10 0 0 1-10 10H40L26 76V64h-2a10 10 0 0 1-10-10V28a10 10 0 0 1 10-10z"/>
+  <path d="M26 33h32M26 45h20" stroke="#2f6fec" stroke-width="6" stroke-linecap="round"/>
+  <!-- 虫眼鏡（吹き出しとの間に背景色のすき間をあけて、小さくても形が分かるように） -->
+  <circle cx="66" cy="62" r="20" fill="#2e66df"/>
+  <circle cx="66" cy="62" r="12.5" fill="#dce8ff" stroke="#fff" stroke-width="6"/>
+  <path d="M75.5 71.5l10 10" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+</svg>
