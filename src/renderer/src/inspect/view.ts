@@ -145,8 +145,7 @@ export class Inspector {
           ? el(
               'p',
               'note',
-              `遅れ ${sec(t.asr.latencyMs)} ・ 処理 ${sec(t.asr.inferenceMs)}（音声 ${sec(t.asr.audioMs)}）・ ${t.text.length}文字` +
-                (t.asr.hints === undefined ? '' : ` ・ 認識のヒント ${t.asr.hints}語`)
+              `遅れ ${sec(t.asr.latencyMs)} ・ 処理 ${sec(t.asr.inferenceMs)}（音声 ${sec(t.asr.audioMs)}）・ ${t.text.length}文字`
             )
           : el('p', 'note', '手入力（文字起こしは通していません）'),
         ...(t.asr?.tokens

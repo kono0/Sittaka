@@ -5,7 +5,7 @@ declare module 'sherpa-onnx-node' {
   }
   export class OfflineRecognizer {
     constructor(config: unknown)
-    createStream(hotwords?: string): OfflineStream
+    createStream(): OfflineStream
     decode(stream: OfflineStream): void
     getResult(stream: OfflineStream): { text: string; tokens?: string[]; ys_log_probs?: number[] }
   }

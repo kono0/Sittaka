@@ -39,9 +39,8 @@ declare global {
     appInfo: { platform: string }
     /** main プロセス側で動く ReazonSpeech */
     asr: {
-      /** hints = 認識のヒントを使う（beam search で読み込む） */
-      load(onProgress: (p: { percent: number | null; message: string }) => void, hints?: boolean): Promise<void>
-      transcribe(samples: Float32Array, hints?: string[]): Promise<Transcript>
+      load(onProgress: (p: { percent: number | null; message: string }) => void): Promise<void>
+      transcribe(samples: Float32Array): Promise<Transcript>
       stop(): Promise<void>
     }
     /** 発話から調べる候補の言葉を抜き出す */

@@ -9,7 +9,7 @@ export interface Trace {
   speaker: Speaker
   text: string
   /** 文字起こしの遅れと処理時間（手入力のときはなし） */
-  asr?: { latencyMs: number; inferenceMs: number; audioMs: number; tokens?: AsrToken[]; hints?: number }
+  asr?: { latencyMs: number; inferenceMs: number; audioMs: number; tokens?: AsrToken[] }
   extracted?: Extracted
   ai?: RefineResult
   /** 最終的に「聞こえた言葉」に並べた言葉 */

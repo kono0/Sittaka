@@ -6,13 +6,12 @@ contextBridge.exposeInMainWorld('appInfo', {
 })
 
 contextBridge.exposeInMainWorld('asr', {
-  load(onProgress: (p: { percent: number | null; message: string }) => void, hints = false): Promise<void> {
+  load(onProgress: (p: { percent: number | null; message: string }) => void): Promise<void> {
     const listener = (_e: IpcRendererEvent, p: { percent: number | null; message: string }) => onProgress(p)
     ipcRenderer.on('asr:progress', listener)
-    return ipcRenderer.invoke('asr:load', hints).finally(() => ipcRenderer.removeListener('asr:progress', listener))
+    return ipcRenderer.invoke('asr:load').finally(() => ipcRenderer.removeListener('asr:progress', listener))
   },
-  transcribe: (samples: Float32Array, hints?: string[]): Promise<Transcript> =>
-    ipcRenderer.invoke('asr:transcribe', samples, hints),
+  transcribe: (samples: Float32Array): Promise<Transcript> => ipcRenderer.invoke('asr:transcribe', samples),
   stop: (): Promise<void> => ipcRenderer.invoke('asr:stop')
 })
 

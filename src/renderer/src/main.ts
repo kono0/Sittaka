@@ -56,11 +56,7 @@ const engines: EngineOption[] = [
   {
     id: 'reazon',
     label: 'ReazonSpeech（日本語専用・おすすめ）',
-    create: async () => {
-      if (!hintsOn.checked) return new ReazonSpeechTranscriber()
-      const hints = await hintWords()
-      return new ReazonSpeechTranscriber(() => hints)
-    }
+    create: async () => new ReazonSpeechTranscriber()
   },
   ...whisperPresets.map((p) => ({
     id: p.id,
@@ -128,39 +124,6 @@ for (const tab of tabs) {
     }
     inspector.setVisible(tab.dataset.view === 'inspect')
   })
-}
-
-// 認識のヒント（実験中）: 単語帳の言葉と、設定に書いた言葉を ReazonSpeech に出やすくさせる
-const hintsOn = $<HTMLInputElement>('hints-on')
-const hintText = $<HTMLTextAreaElement>('hint-words')
-try {
-  hintsOn.checked = localStorage.getItem('hints-on') === '1'
-  hintText.value = localStorage.getItem('hint-words') ?? ''
-} catch {
-  // 保存できない環境でも既定値で動く
-}
-hintsOn.addEventListener('change', () => saveSetting('hints-on', hintsOn.checked ? '1' : '0'))
-hintText.addEventListener('change', () => saveSetting('hint-words', hintText.value))
-
-function saveSetting(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // 無視
-  }
-}
-
-/** ヒントにする言葉。設定に書いた言葉を先に、単語帳の新しい言葉から順に */
-async function hintWords(): Promise<string[]> {
-  const typed = hintText.value.split(/[、,，\n]+/).map((w) => w.trim())
-  let saved: string[] = []
-  try {
-    const { entries } = await window.wordbook.list()
-    saved = [...entries].sort((a, b) => b.savedAt.localeCompare(a.savedAt)).map((e) => e.word)
-  } catch {
-    // 単語帳が読めなくても、書いた言葉だけで動く
-  }
-  return [...new Set([...typed, ...saved].filter((w) => w.length >= 2))].slice(0, 300)
 }
 
 const amountSelect = $<HTMLSelectElement>('amount')
@@ -342,7 +305,7 @@ function recentContext(): string[] {
 async function findTermsForLine(line: TranscriptLine, body: HTMLElement): Promise<void> {
   const context = recentContext()
   const { trace, terms } = await findTerms(line.text, line.speaker, context.slice(0, -1), amount)
-  trace.asr = { latencyMs: line.latencyMs, inferenceMs: line.inferenceMs, audioMs: line.audioMs, tokens: line.tokens, hints: line.hints }
+  trace.asr = { latencyMs: line.latencyMs, inferenceMs: line.inferenceMs, audioMs: line.audioMs, tokens: line.tokens }
   inspector.add(trace)
   if (trace.ai?.status === 'error') showAiError(trace.ai.error)
   if (trace.error) console.error('言葉の抜き出しに失敗しました', trace.error)
