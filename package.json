@@ -10,8 +10,9 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
-    "dist": "electron-vite build && electron-builder --win",
-    "dist:dir": "electron-vite build && electron-builder --dir"
+    "dist": "electron-vite build && npm run notices && electron-builder --win",
+    "dist:dir": "electron-vite build && npm run notices && electron-builder --dir",
+    "notices": "node scripts/notices.mjs"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",

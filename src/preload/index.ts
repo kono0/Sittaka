@@ -2,7 +2,8 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { Transcript } from '../main/asr/protocol'
 
 contextBridge.exposeInMainWorld('appInfo', {
-  platform: process.platform
+  platform: process.platform,
+  openDoc: (name: 'privacy' | 'notices') => ipcRenderer.invoke('app:openDoc', name)
 })
 
 contextBridge.exposeInMainWorld('asr', {

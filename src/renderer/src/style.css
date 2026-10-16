@@ -1003,3 +1003,8 @@ button.danger-fill {
 #onboarding-again {
   margin-top: 10px;
 }
+.doc-links {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}

@@ -40,7 +40,11 @@ export type ProviderId = 'sarashina' | 'gemini' | 'claude'
 
 declare global {
   interface Window {
-    appInfo: { platform: string }
+    appInfo: {
+      platform: string
+      /** プライバシーポリシーやライセンス表記を、PC の既定のアプリで開く */
+      openDoc(name: 'privacy' | 'notices'): Promise<void>
+    }
     /** main プロセス側で動く ReazonSpeech */
     asr: {
       load(onProgress: (p: { percent: number | null; message: string }) => void): Promise<void>

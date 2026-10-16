@@ -1,5 +1,15 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeTheme, screen, session } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  desktopCapturer,
+  globalShortcut,
+  ipcMain,
+  nativeTheme,
+  screen,
+  session,
+  shell
+} from 'electron'
 import { registerAiIpc } from './ai/ipc'
 import { registerAsrIpc } from './asr/service'
 import { registerTermsIpc } from './terms/ipc'
@@ -108,6 +118,14 @@ function registerHotkeys(win: BrowserWindow): void {
     else win.showInactive()
   })
 }
+
+// インストール先（開発中はリポジトリ）に置いた文書を開く
+ipcMain.handle('app:openDoc', async (_e, name: 'privacy' | 'notices') => {
+  const file = { privacy: 'PRIVACY.md', notices: 'THIRD_PARTY_NOTICES.md' }[name]
+  if (!file) return
+  const error = await shell.openPath(join(app.isPackaged ? process.resourcesPath : app.getAppPath(), file))
+  if (error) throw new Error(error)
+})
 
 app.whenReady().then(() => {
   allowAudioCapture()

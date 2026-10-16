@@ -9,6 +9,10 @@ files:
   - '!**/*.map'
 # sherpa-onnx はネイティブモジュールと DLL を一緒に読むので asar の外に出す。
 # kuromoji の辞書もファイルとして読むので外に出しておく。
+# ライセンス表記とプライバシーポリシーをインストール先に置く（resources フォルダの中）
+extraResources:
+  - THIRD_PARTY_NOTICES.md
+  - PRIVACY.md
 asarUnpack:
   - node_modules/sherpa-onnx-*/**
   - node_modules/kuromoji/dict/**

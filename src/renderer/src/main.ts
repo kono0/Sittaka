@@ -189,6 +189,8 @@ function openOnboarding(): void {
   showOnboarding({ micSelect, onDone: () => void renderSettings() })
 }
 $<HTMLButtonElement>('onboarding-again').addEventListener('click', openOnboarding)
+$<HTMLButtonElement>('open-privacy').addEventListener('click', () => void window.appInfo.openDoc('privacy'))
+$<HTMLButtonElement>('open-notices').addEventListener('click', () => void window.appInfo.openDoc('notices'))
 
 $<HTMLFormElement>('key-form').addEventListener('submit', async (e) => {
   e.preventDefault()
