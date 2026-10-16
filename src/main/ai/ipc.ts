@@ -1,8 +1,8 @@
 import { join } from 'node:path'
 import { app, ipcMain, net } from 'electron'
-import { getSarashinaKey, setSarashinaKey } from '../settings'
+import { getKey, getProvider, keyStates, setKey, setProvider } from '../settings'
 import { Wordbook, type WordbookEntry } from '../wordbook'
-import { describeError, SarashinaClient, type ChatTrace } from './chat'
+import { AiClient, describeError, PROVIDERS, type ChatTrace, type ProviderId } from './chat'
 import { explainTerm } from './explain'
 import { readingOf } from '../terms/extract'
 import { getTokenizer } from '../terms/tokenizer'
@@ -13,26 +13,39 @@ type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 export type RefineResult =
   | { status: 'no-key' }
   | { status: 'busy'; waitMs: number }
-  | { status: 'ok'; terms: RefinedTerm[]; judgments: Judgment[]; prompt: string; raw: string; ms: number }
-  | { status: 'error'; error: string; prompt: string; raw: string; ms: number }
+  | {
+      status: 'ok'
+      terms: RefinedTerm[]
+      judgments: Judgment[]
+      prompt: string
+      raw: string
+      ms: number
+      model: string
+    }
+  | { status: 'error'; error: string; prompt: string; raw: string; ms: number; model: string }
 
 /**
  * AI と設定と単語帳の窓口。API キーは main プロセスの中だけで扱い、画面側には渡さない。
  */
 export function registerAiIpc(): void {
-  let client: SarashinaClient | null = null
+  let client: AiClient | null = null
   const getClient = () => {
     if (client) return client
-    const key = getSarashinaKey()
-    client = key ? new SarashinaClient(key, (url, init) => net.fetch(url, init)) : null
+    const provider = getProvider()
+    const key = getKey(provider)
+    client = key ? new AiClient(provider, key, (url, init) => net.fetch(url, init)) : null
     return client
   }
   const levels = new LevelMemory()
   const wordbook = new Wordbook(join(app.getPath('userData'), 'wordbook.json'))
 
-  ipcMain.handle('settings:get', () => ({ hasSarashinaKey: getSarashinaKey() !== null }))
-  ipcMain.handle('settings:setSarashinaKey', async (_e, key: string | null) => {
-    await setSarashinaKey(key?.trim() || null)
+  ipcMain.handle('settings:get', () => ({ provider: getProvider(), keys: keyStates() }))
+  ipcMain.handle('settings:setProvider', async (_e, provider: ProviderId) => {
+    await setProvider(provider)
+    client = null
+  })
+  ipcMain.handle('settings:setKey', async (_e, provider: ProviderId, key: string | null) => {
+    await setKey(provider, key?.trim() || null)
     client = null
   })
 
@@ -45,8 +58,8 @@ export function registerAiIpc(): void {
     async (_e, context: string[], utterance: string, candidates: string[], amount: Amount): Promise<RefineResult> => {
       const c = getClient()
       if (!c) return { status: 'no-key' }
-      // 1分60回の上限に近づいて待たされるなら、AI を通さない
-      const waitMs = c.waitFor('sarashina3-nano')
+      // 回数の上限に近づいて待たされるなら、AI を通さない
+      const waitMs = c.waitFor('fast')
       if (waitMs > 3000) return { status: 'busy', waitMs }
       const trace: ChatTrace & { prompt?: string } = {}
       try {
@@ -57,7 +70,8 @@ export function registerAiIpc(): void {
           judgments,
           prompt: trace.prompt ?? '',
           raw: trace.raw ?? '',
-          ms: trace.ms ?? 0
+          ms: trace.ms ?? 0,
+          model: trace.model ?? ''
         }
       } catch (err) {
         return {
@@ -65,7 +79,8 @@ export function registerAiIpc(): void {
           error: describeError(err),
           prompt: trace.prompt ?? '',
           raw: trace.raw ?? '',
-          ms: trace.ms ?? 0
+          ms: trace.ms ?? 0,
+          model: trace.model ?? ''
         }
       }
     }
@@ -73,7 +88,8 @@ export function registerAiIpc(): void {
 
   ipcMain.handle('ai:explain', async (_e, context: string[], word: string) => {
     const c = getClient()
-    if (!c) return { ok: false, error: '設定で Sarashina の API キーを入れると、意味を表示できます' }
+    if (!c)
+      return { ok: false, error: `設定で ${PROVIDERS[getProvider()].label} の API キーを入れると、意味を表示できます` }
     try {
       return { ok: true, value: await explainTerm(c, context, word) } satisfies Result<unknown>
     } catch (err) {

@@ -149,7 +149,13 @@ export class Inspector {
             )
           : el('p', 'note', '手入力（文字起こしは通していません）'),
         ...(t.asr?.tokens
-          ? [el('p', 'note', '下線 = 音声認識の自信が低い文字（点線 80%未満・赤 50%未満）。文字にカーソルを乗せると確率が出ます')]
+          ? [
+              el(
+                'p',
+                'note',
+                '下線 = 音声認識の自信が低い文字（点線 80%未満・赤 50%未満）。文字にカーソルを乗せると確率が出ます'
+              )
+            ]
           : [])
       )
     )
@@ -209,13 +215,10 @@ export class Inspector {
 
   private aiStage(t: Trace): HTMLElement {
     const ai = t.ai
-    if (!ai) return stage('4. Sarashina', el('p', 'note', '候補がないので呼んでいません'))
-    if (ai.status === 'no-key') return stage('4. Sarashina', el('p', 'note', 'API キーがないので呼んでいません'))
+    if (!ai) return stage('4. AI', el('p', 'note', '候補がないので呼んでいません'))
+    if (ai.status === 'no-key') return stage('4. AI', el('p', 'note', 'API キーがないので呼んでいません'))
     if (ai.status === 'busy') {
-      return stage(
-        '4. Sarashina',
-        el('p', 'note', `1分あたりの上限に近く、${sec(ai.waitMs)}待ちになるので省略しました`)
-      )
+      return stage('4. AI', el('p', 'note', `1分あたりの上限に近く、${sec(ai.waitMs)}待ちになるので省略しました`))
     }
     const body: Node[] = []
     if (ai.status === 'error') {
@@ -262,7 +265,7 @@ export class Inspector {
       if (missing.length) body.push(el('p', 'error', `AI が採点しなかった候補: ${missing.join('、')}`))
     }
     body.push(fold('AI に送った文', ai.prompt), fold('AI が返したそのままの答え', ai.raw || '（空）'))
-    return stage('4. Sarashina の判断（sarashina3-nano）', ...body)
+    return stage(`4. AI の判断${ai.model ? `（${ai.model}）` : ''}`, ...body)
   }
 
   private download(): void {

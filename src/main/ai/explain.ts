@@ -29,7 +29,7 @@ const SYSTEM = `あなたは、通話中にこっそり言葉の意味を確か�
 
 /**
  * キープした言葉の意味を、会話に合わせて一文で説明させる。
- * 質の高い mini を使い、混んでいたり上限に当たったりしたら nano に切り替える。
+ * 賢いほうのモデルを使い、混んでいたり上限に当たったりしたら速いほうに切り替える。
  */
 export async function explainTerm(
   client: ChatClient & { waitFor?(model: Model): number },
@@ -43,18 +43,18 @@ export async function explainTerm(
       content: `会話:\n${context.length ? context.join('\n') : '（なし）'}\n\n調べたい言葉: ${word}`
     }
   ]
-  // mini は1分6回まで。待たされるくらいなら nano で早く返す
-  const miniBusy = (client.waitFor?.('sarashina3-mini') ?? 0) > 2000
+  // 賢いほうは回数の上限が低いことがある。待たされるくらいなら速いほうで早く返す
+  const miniBusy = (client.waitFor?.('smart') ?? 0) > 2000
   const ask = (model: Model) => client.json<Explanation>(model, messages, SCHEMA, 300)
   let out: Explanation
   if (miniBusy) {
-    out = await ask('sarashina3-nano')
+    out = await ask('fast')
   } else {
     try {
-      out = await ask('sarashina3-mini')
+      out = await ask('smart')
     } catch (err) {
       if (!(err instanceof ApiError) || (err.status !== 429 && err.status < 500)) throw err
-      out = await ask('sarashina3-nano')
+      out = await ask('fast')
     }
   }
   return {

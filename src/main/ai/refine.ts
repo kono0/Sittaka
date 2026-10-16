@@ -83,7 +83,7 @@ function systemPrompt(): string {
 /**
  * 名詞の候補を、前後の会話を見ながら AI に1つずつ採点させ、漢字の誤変換を直させる。
  * 「残す・外す」を直接選ばせると候補の数によって判断がぶれたので、段階で採点させて
- * どこから残すかはこちらで決める。速さと回数の上限（1分60回）を優先して nano を使う。
+ * どこから残すかはこちらで決める。呼ぶ回数が多いので、速いほうのモデルを使う。
  */
 export async function refineTerms(
   client: ChatClient,
@@ -103,7 +103,7 @@ export async function refineTerms(
   ].join('\n\n')
   if (trace) trace.prompt = user
   const out = await client.json<{ candidates?: Item[]; added?: Item[] }>(
-    'sarashina3-nano',
+    'fast',
     [
       { role: 'system', content: systemPrompt() },
       { role: 'user', content: user }
@@ -163,7 +163,10 @@ export class LevelMemory {
 
   /** 最近出た言葉（新しい順） */
   recent(n: number): string[] {
-    return [...this.words.values()].slice(-n).reverse().map((e) => e.text)
+    return [...this.words.values()]
+      .slice(-n)
+      .reverse()
+      .map((e) => e.text)
   }
 
   clear(): void {

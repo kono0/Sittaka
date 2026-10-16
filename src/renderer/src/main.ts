@@ -7,6 +7,7 @@ import { Inspector } from './inspect/view'
 import { WordbookView } from './wordbook/view'
 import { WordBoard, type BoardWord } from './words/board'
 import { findTerms, type Amount } from './words/pipeline'
+import type { ProviderId } from '../../preload/api'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const engineSelect = $<HTMLSelectElement>('engine')
@@ -185,7 +186,7 @@ $<HTMLFormElement>('key-form').addEventListener('submit', async (e) => {
   const input = $<HTMLInputElement>('key-input')
   if (!input.value.trim()) return
   try {
-    await window.settings.setSarashinaKey(input.value)
+    await window.settings.setKey(selectedProvider(), input.value)
     input.value = ''
     await renderSettings()
   } catch (err) {
@@ -195,7 +196,7 @@ $<HTMLFormElement>('key-form').addEventListener('submit', async (e) => {
   }
 })
 $<HTMLButtonElement>('key-remove').addEventListener('click', async () => {
-  await window.settings.setSarashinaKey(null)
+  await window.settings.setKey(selectedProvider(), null)
   await renderSettings()
 })
 
@@ -451,12 +452,31 @@ function card(w: BoardWord): HTMLElement {
   return el
 }
 
+const PROVIDER_NOTES: Record<ProviderId, string> = {
+  sarashina:
+    '日本語に強い国産の AI です。キーは Sarashina の開発者向けページで作れます。無料ベータでは、送った内容が AI の学習に使われます。',
+  gemini:
+    'キーは Google AI Studio で作れます。無料枠では、送った内容が Google のサービス改善に使われることがあります。支払い方法を登録した有料枠では使われません。',
+  claude:
+    'キーは Claude の開発者向けページ（Claude Console）で作れます。使った分だけ料金がかかります。送った内容は、初期設定では AI の学習に使われません。'
+}
+
+const providerSelect = $<HTMLSelectElement>('provider')
+const selectedProvider = () => providerSelect.value as ProviderId
+providerSelect.addEventListener('change', async () => {
+  await window.settings.setProvider(selectedProvider())
+  await renderSettings()
+})
+
 async function renderSettings(): Promise<void> {
-  const { hasSarashinaKey } = await window.settings.get()
-  $<HTMLParagraphElement>('key-state').textContent = hasSarashinaKey
-    ? 'キーは保存済みです。AI での絞り込みと意味の表示が有効になっています。'
-    : 'キーが未設定です。今は規則だけで言葉を選んでいて、意味は表示されません。'
-  $<HTMLButtonElement>('key-remove').hidden = !hasSarashinaKey
+  const { provider, keys } = await window.settings.get()
+  providerSelect.value = provider
+  const label = providerSelect.selectedOptions[0]?.textContent?.replace(/（.*$/, '') ?? provider
+  $<HTMLParagraphElement>('provider-note').textContent = PROVIDER_NOTES[provider]
+  $<HTMLParagraphElement>('key-state').textContent = keys[provider]
+    ? `${label} のキーは保存済みです。AI での絞り込みと意味の表示が有効になっています。`
+    : `${label} のキーが未設定です。今は規則だけで言葉を選んでいて、意味は表示されません。`
+  $<HTMLButtonElement>('key-remove').hidden = !keys[provider]
 }
 
 function chip(w: BoardWord, num: number | null, onClick: () => void): HTMLButtonElement {

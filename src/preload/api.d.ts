@@ -31,8 +31,12 @@ export type RefineResult =
       prompt: string
       raw: string
       ms: number
+      /** 使ったモデルの名前（古い記録にはない） */
+      model?: string
     }
-  | { status: 'error'; error: string; prompt: string; raw: string; ms: number }
+  | { status: 'error'; error: string; prompt: string; raw: string; ms: number; model?: string }
+
+export type ProviderId = 'sarashina' | 'gemini' | 'claude'
 
 declare global {
   interface Window {
@@ -48,10 +52,12 @@ declare global {
       extract(text: string): Promise<Extracted>
     }
     settings: {
-      get(): Promise<{ hasSarashinaKey: boolean }>
-      setSarashinaKey(key: string | null): Promise<void>
+      /** 使う AI と、会社ごとのキーの有無（キーそのものは画面に渡さない） */
+      get(): Promise<{ provider: ProviderId; keys: Record<ProviderId, boolean> }>
+      setProvider(provider: ProviderId): Promise<void>
+      setKey(provider: ProviderId, key: string | null): Promise<void>
     }
-    /** Sarashina による絞り込みと意味の説明。キーがなければ使えない */
+    /** AI による絞り込みと意味の説明。キーがなければ使えない */
     ai: {
       /** キーがない・混んでいるときは AI を通さない（規則の結果を使う） */
       refine(

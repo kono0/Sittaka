@@ -30,7 +30,8 @@ contextBridge.exposeInMainWorld('hotkeys', {
 
 contextBridge.exposeInMainWorld('settings', {
   get: () => ipcRenderer.invoke('settings:get'),
-  setSarashinaKey: (key: string | null) => ipcRenderer.invoke('settings:setSarashinaKey', key)
+  setProvider: (provider: string) => ipcRenderer.invoke('settings:setProvider', provider),
+  setKey: (provider: string, key: string | null) => ipcRenderer.invoke('settings:setKey', provider, key)
 })
 
 contextBridge.exposeInMainWorld('ai', {

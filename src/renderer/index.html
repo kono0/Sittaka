@@ -52,7 +52,13 @@
       <section class="view wordbook" data-view="wordbook" id="wordbook" hidden></section>
       <section class="view inspect" data-view="inspect" id="inspect" hidden></section>
       <section class="view settings" data-view="settings" hidden>
-        <h2>Sarashina の API キー</h2>
+        <h2>使う AI</h2>
+        <select id="provider">
+          <option value="sarashina">Sarashina（SB Intuitions）</option>
+          <option value="gemini">Gemini（Google）</option>
+          <option value="claude">Claude（Anthropic）</option>
+        </select>
+        <p id="provider-note" class="note"></p>
         <p id="key-state" class="note"></p>
         <form id="key-form">
           <input id="key-input" type="password" autocomplete="off" placeholder="キーを貼り付け" />
@@ -77,9 +83,8 @@
         <p class="note">止めている間だけ変えられます。</p>
         <h2>データの扱い</h2>
         <p class="note">
-          キーはこの PC の中に暗号化して保存します。キーを入れると、聞き取った文章と調べる言葉を Sarashina
-          に送って、言葉の絞り込み・漢字の直し・意味の説明をさせます。 Sarashina の無料版では、送った内容が AI
-          の学習に使われます。音声そのものは送りません。
+          キーはこの PC の中に暗号化して保存します。キーを入れると、聞き取った文章と調べる言葉を選んだ AI
+          に送って、言葉の絞り込み・漢字の直し・意味の説明をさせます。音声そのものはどこにも送らず、保存もしません。
         </p>
       </section>
     </main>
