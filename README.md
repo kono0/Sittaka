@@ -1,4 +1,4 @@
-# Talking.word_Cheating_tool
+# Sittaka
 
 相手にバレずに知ったかをできるよう助けるツール。
 
@@ -74,8 +74,8 @@ Whisper は短い発話でも30秒分の計算をする仕組みのため、内�
 3. PowerShell で次を実行する
 
    ```powershell
-   git clone https://github.com/kono0/Talking.word_Cheating_tool.git
-   cd Talking.word_Cheating_tool
+   git clone https://github.com/kono0/Sittaka.git
+   cd Sittaka
    git checkout claude/project-thread-u5pdnk
    npm install
    npm run dev

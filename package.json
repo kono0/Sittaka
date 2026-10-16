@@ -1,5 +1,5 @@
 {
-  "name": "talking-word-lookup",
+  "name": "sittaka",
   "version": "0.1.0",
   "private": true,
   "description": "通話中の会話を文字起こしし、知らない単語をこっそり調べるデスクトップアプリ",
@@ -35,10 +35,10 @@
   "allowScripts": {
     "electron@44.7.2": true
   },
-  "productName": "Talking Word",
+  "productName": "Sittaka",
   "author": "kono0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kono0/Talking.word_Cheating_tool.git"
+    "url": "https://github.com/kono0/Sittaka.git"
   }
 }

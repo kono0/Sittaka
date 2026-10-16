@@ -1,6 +1,6 @@
 # プライバシーポリシー
 
-Talking Word（以下「このアプリ」）が扱う情報と、その行き先をまとめます。
+Sittaka（以下「このアプリ」）が扱う情報と、その行き先をまとめます。
 
 ## 音声
 
@@ -33,4 +33,4 @@ API キーは、Windows の暗号化の仕組み（DPAPI）で暗号化して、
 
 ## 問い合わせ
 
-https://github.com/kono0/Talking.word_Cheating_tool/issues
+https://github.com/kono0/Sittaka/issues

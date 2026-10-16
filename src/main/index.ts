@@ -40,7 +40,7 @@ function createPanel(): BrowserWindow {
     // 見た目を Windows のライト・ダークに合わせるため、枠は自前で描く（上の帯をつかんで動かせる）
     frame: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#15171b' : '#f5f6f8',
-    title: 'Talking Word',
+    title: 'Sittaka',
     icon: join(__dirname, '../../resources/icon.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
