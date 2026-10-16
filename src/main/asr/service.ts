@@ -13,21 +13,21 @@ class ReazonSpeechService {
   private nextId = 1
   private pending = new Map<number, Pending>()
 
-  load(sender: WebContents): Promise<void> {
-    this.loading ??= this.start(sender).catch((err) => {
+  load(sender: WebContents, hints: boolean): Promise<void> {
+    this.loading ??= this.start(sender, hints).catch((err) => {
       this.stop()
       throw err
     })
     return this.loading
   }
 
-  transcribe(samples: Float32Array): Promise<Transcript> {
+  transcribe(samples: Float32Array, hints?: string[]): Promise<Transcript> {
     const child = this.child
     if (!child) return Promise.reject(new Error('エンジンが起動していません'))
     const id = this.nextId++
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject })
-      child.postMessage({ type: 'transcribe', id, samples } satisfies AsrRequest)
+      child.postMessage({ type: 'transcribe', id, samples, hints } satisfies AsrRequest)
     })
   }
 
@@ -39,7 +39,7 @@ class ReazonSpeechService {
     this.pending.clear()
   }
 
-  private async start(sender: WebContents): Promise<void> {
+  private async start(sender: WebContents, hints: boolean): Promise<void> {
     const modelDir = await ensureModel(join(app.getPath('userData'), 'models'), (p) => {
       if (!sender.isDestroyed()) sender.send('asr:progress', p)
     })
@@ -59,7 +59,7 @@ class ReazonSpeechService {
       })
       // 会話の処理中も他のアプリが重くならないよう、使うコアは2つまで
       const numThreads = Math.max(1, Math.min(2, cpus().length - 1))
-      child.postMessage({ type: 'load', modelDir, numThreads } satisfies AsrRequest)
+      child.postMessage({ type: 'load', modelDir, numThreads, hints } satisfies AsrRequest)
     })
   }
 
@@ -73,8 +73,10 @@ class ReazonSpeechService {
 
 export function registerAsrIpc(): void {
   const service = new ReazonSpeechService()
-  ipcMain.handle('asr:load', (e) => service.load(e.sender))
-  ipcMain.handle('asr:transcribe', (_e, samples: Float32Array) => service.transcribe(samples))
+  ipcMain.handle('asr:load', (e, hints: boolean) => service.load(e.sender, hints === true))
+  ipcMain.handle('asr:transcribe', (_e, samples: Float32Array, hints?: string[]) =>
+    service.transcribe(samples, Array.isArray(hints) ? hints.slice(0, 300).map(String) : undefined)
+  )
   ipcMain.handle('asr:stop', () => service.stop())
   app.on('will-quit', () => service.stop())
 }

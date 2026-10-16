@@ -10,11 +10,13 @@ export interface Transcript {
   text: string
   /** 聞き間違いを見分ける手がかり。出せないエンジンではなし */
   tokens?: AsrToken[]
+  /** 認識のヒントとして渡せた言葉の数（ヒントを使っていないときはなし） */
+  hints?: number
 }
 
 export type AsrRequest =
-  | { type: 'load'; modelDir: string; numThreads: number }
-  | { type: 'transcribe'; id: number; samples: Float32Array }
+  | { type: 'load'; modelDir: string; numThreads: number; hints: boolean }
+  | { type: 'transcribe'; id: number; samples: Float32Array; hints?: string[] }
 
 export type AsrResponse =
   | { type: 'ready' }

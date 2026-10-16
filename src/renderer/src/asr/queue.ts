@@ -12,6 +12,8 @@ export interface TranscriptLine {
   audioMs: number
   /** 文字ごとの確率（エンジンが出せるときだけ） */
   tokens?: AsrToken[]
+  /** 認識のヒントとして渡した言葉の数（使っていないときはなし） */
+  hints?: number
 }
 
 interface Job {
@@ -53,7 +55,7 @@ export class TranscriptionQueue {
         const audioMs = (job.audio.length / 16000) * 1000
         const started = this.now()
         try {
-          const { text, tokens } = await this.engine.transcribe(job.audio)
+          const { text, tokens, hints } = await this.engine.transcribe(job.audio)
           const done = this.now()
           if (text) {
             this.onLine({
@@ -62,7 +64,8 @@ export class TranscriptionQueue {
               latencyMs: done - job.capturedAt,
               inferenceMs: done - started,
               audioMs,
-              ...(tokens ? { tokens } : {})
+              ...(tokens ? { tokens } : {}),
+              ...(hints !== undefined ? { hints } : {})
             })
           }
         } catch (err) {

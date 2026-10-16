@@ -670,6 +670,19 @@ button.danger-fill {
   flex: 1;
   min-width: 0;
 }
+.settings .check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+#hint-words {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  resize: vertical;
+}
 
 /* 検証タブ */
 .inspect-form {

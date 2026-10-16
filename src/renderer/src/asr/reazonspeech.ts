@@ -7,12 +7,15 @@ import type { LoadProgress, Transcriber, Transcript } from './transcriber'
 export class ReazonSpeechTranscriber implements Transcriber {
   readonly label = 'ReazonSpeech'
 
+  /** hints: 出やすくしたい言葉（認識のヒント）。null ならヒントを使わない */
+  constructor(private readonly hints: (() => string[]) | null = null) {}
+
   load(onProgress: (p: LoadProgress) => void): Promise<void> {
-    return window.asr.load(onProgress)
+    return window.asr.load(onProgress, this.hints !== null)
   }
 
   transcribe(audio: Float32Array): Promise<Transcript> {
-    return window.asr.transcribe(audio)
+    return window.asr.transcribe(audio, this.hints?.())
   }
 
   dispose(): void {
