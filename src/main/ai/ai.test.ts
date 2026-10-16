@@ -67,31 +67,50 @@ function fakeClient(reply: (model: Model) => unknown, log: Model[] = []): ChatCl
 }
 
 describe('refineTerms', () => {
-  it('cleans, dedupes and caps the model output', async () => {
-    const client = fakeClient(() => ({
-      terms: [
-        { text: ' 冪等性 ', reading: 'べきとうせい' },
-        { text: '冪等性', reading: 'べきとうせい' },
-        { text: 'a', reading: 'えー' },
-        ...['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1'].map((text) => ({ text, reading: '' }))
-      ]
-    }))
-    const out = await refineTerms(client, [], '冪等性を担保します', ['冪等性'])
-    expect(out.map((t) => t.text)).toEqual(['冪等性', 'A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1'])
+  const item = (candidate: string, level: number, text = candidate, reading = '') => ({
+    candidate,
+    text,
+    reading,
+    level
   })
 
-  it('tells the model how much to keep', async () => {
-    const prompts: string[] = []
-    const client: ChatClient = {
-      json: async <T>(_m: Model, messages: { content: string }[]) => {
-        prompts.push(messages[0].content)
-        return { terms: [] } as T
-      }
-    }
-    await refineTerms(client, [], 'x', [], 'few')
-    await refineTerms(client, [], 'x', [], 'many')
-    expect(prompts[0]).toContain('可能性が高い言葉')
-    expect(prompts[1]).toContain('ほとんど残す')
+  it('keeps candidates at or above the level for the chosen amount', async () => {
+    const client = fakeClient(() => ({
+      candidates: [item('文字', 1), item('実行', 2), item('変数', 3, '変数', 'へんすう'), item('冪等性', 4)],
+      added: []
+    }))
+    const pick = async (amount: 'few' | 'normal' | 'many') =>
+      (await refineTerms(client, [], 'x', [], amount)).terms.map((t) => t.text)
+    expect(await pick('few')).toEqual(['冪等性'])
+    expect(await pick('normal')).toEqual(['変数', '冪等性'])
+    expect(await pick('many')).toEqual(['実行', '変数', '冪等性'])
+  })
+
+  it('records every judgment, fixes and additions, and cleans the output', async () => {
+    const client = fakeClient(() => ({
+      candidates: [
+        item(' 返信 ', 3, '変数', 'へんすう'),
+        item('変数', 3),
+        item('アルファベット', 3, 'アルファベット', 'あlphabet'),
+        item('a', 4),
+        item('数', 9)
+      ],
+      added: [item('代入', 3, '代入', 'だいにゅう'), item('A1', 4), item('B1', 4), item('C1', 4)]
+    }))
+    const out = await refineTerms(client, [], 'x', ['返信', '変数', 'アルファベット', 'a', '数'])
+    expect(out.terms).toEqual([
+      { text: '変数', reading: 'へんすう' },
+      { text: 'アルファベット', reading: '' },
+      { text: '代入', reading: 'だいにゅう' },
+      { text: 'A1', reading: '' },
+      { text: 'B1', reading: '' }
+    ])
+    expect(out.judgments[0]).toEqual({ candidate: '返信', text: '変数', level: 3, added: false, kept: true })
+    // 直した結果と重なった候補は二重に並べない
+    expect(out.judgments[1].kept).toBe(false)
+    // 段階は 1〜4 に収める
+    expect(out.judgments[4].level).toBe(4)
+    expect(out.judgments.filter((j) => j.added)).toHaveLength(3)
   })
 })
 

@@ -19,7 +19,15 @@ export interface Extracted {
 export type RefineResult =
   | { status: 'no-key' }
   | { status: 'busy'; waitMs: number }
-  | { status: 'ok'; terms: { text: string; reading: string }[]; prompt: string; raw: string; ms: number }
+  | {
+      status: 'ok'
+      terms: { text: string; reading: string }[]
+      /** 候補1つずつの AI の採点（1〜4） */
+      judgments: { candidate: string; text: string; level: number; added: boolean; kept: boolean }[]
+      prompt: string
+      raw: string
+      ms: number
+    }
   | { status: 'error'; error: string; prompt: string; raw: string; ms: number }
 
 declare global {

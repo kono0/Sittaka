@@ -47,11 +47,19 @@ async function downloadFiles(files: string[], destDir: string, onProgress: (p: M
   }
 }
 
-async function downloadArchive(files: string[], destDir: string, onProgress: (p: ModelProgress) => void): Promise<void> {
+async function downloadArchive(
+  files: string[],
+  destDir: string,
+  onProgress: (p: ModelProgress) => void
+): Promise<void> {
   const archive = join(destDir, 'model.tar.bz2')
   await download(MODEL_ARCHIVE_URL, archive, onProgress)
   onProgress({ percent: null, message: 'モデルを展開しています…' })
-  await untar(archive, destDir, files.map((f) => `${MODEL_ARCHIVE_ROOT}/${f}`))
+  await untar(
+    archive,
+    destDir,
+    files.map((f) => `${MODEL_ARCHIVE_ROOT}/${f}`)
+  )
   await rm(archive, { force: true })
   for (const f of files) await rename(join(destDir, MODEL_ARCHIVE_ROOT, f), join(destDir, f))
   await rm(join(destDir, MODEL_ARCHIVE_ROOT), { recursive: true, force: true })
@@ -73,7 +81,9 @@ async function download(url: string, dest: string, onProgress: (p: ModelProgress
         const mb = (received / 1e6).toFixed(0)
         onProgress({
           percent: total ? (received / total) * 100 : null,
-          message: total ? `モデルをダウンロード中 ${mb} / ${(total / 1e6).toFixed(0)}MB` : `モデルをダウンロード中 ${mb}MB`
+          message: total
+            ? `モデルをダウンロード中 ${mb} / ${(total / 1e6).toFixed(0)}MB`
+            : `モデルをダウンロード中 ${mb}MB`
         })
       }
       cb(null, chunk)

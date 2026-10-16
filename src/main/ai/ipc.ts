@@ -4,14 +4,16 @@ import { getSarashinaKey, setSarashinaKey } from '../settings'
 import { Wordbook, type WordbookEntry } from '../wordbook'
 import { describeError, SarashinaClient, type ChatTrace } from './chat'
 import { explainTerm } from './explain'
-import { refineTerms, type Amount, type RefinedTerm } from './refine'
+import { readingOf } from '../terms/extract'
+import { getTokenizer } from '../terms/tokenizer'
+import { refineTerms, type Amount, type Judgment, type RefinedTerm } from './refine'
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export type RefineResult =
   | { status: 'no-key' }
   | { status: 'busy'; waitMs: number }
-  | { status: 'ok'; terms: RefinedTerm[]; prompt: string; raw: string; ms: number }
+  | { status: 'ok'; terms: RefinedTerm[]; judgments: Judgment[]; prompt: string; raw: string; ms: number }
   | { status: 'error'; error: string; prompt: string; raw: string; ms: number }
 
 /**
@@ -47,8 +49,15 @@ export function registerAiIpc(): void {
       if (waitMs > 3000) return { status: 'busy', waitMs }
       const trace: ChatTrace & { prompt?: string } = {}
       try {
-        const terms = await refineTerms(c, context, utterance, candidates, amount, trace)
-        return { status: 'ok', terms, prompt: trace.prompt ?? '', raw: trace.raw ?? '', ms: trace.ms ?? 0 }
+        const { terms, judgments } = await refineTerms(c, context, utterance, candidates, amount, trace)
+        return {
+          status: 'ok',
+          terms: await withDictionaryReadings(terms),
+          judgments,
+          prompt: trace.prompt ?? '',
+          raw: trace.raw ?? '',
+          ms: trace.ms ?? 0
+        }
       } catch (err) {
         return {
           status: 'error',
@@ -74,4 +83,10 @@ export function registerAiIpc(): void {
   ipcMain.handle('wordbook:list', () => wordbook.list())
   ipcMain.handle('wordbook:save', (_e, entry: WordbookEntry) => wordbook.save(entry))
   ipcMain.handle('wordbook:remove', (_e, word: string) => wordbook.remove(word))
+}
+
+/** 漢字の言葉は、AI の読みより辞書の読みを優先する（AI の読みは毎回ぶれるため） */
+async function withDictionaryReadings(terms: RefinedTerm[]): Promise<RefinedTerm[]> {
+  const tokenizer = await getTokenizer()
+  return terms.map((t) => ({ ...t, reading: readingOf(tokenizer.tokenize(t.text)) ?? t.reading }))
 }

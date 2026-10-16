@@ -13,7 +13,11 @@ describe('extractTerms', () => {
   it('picks jargon out of business and tech talk', () => {
     expect(terms('冪等性を担保するためにリトライ処理を入れておきました')).toEqual(['冪等性', 'リトライ処理'])
     expect(terms('じゃあ来週の会議でKPIとかROIの話をしましょう')).toEqual(['KPI', 'ROI'])
-    expect(terms('このAPIはレイテンシがボトルネックになってるんですよね')).toEqual(['API', 'レイテンシ', 'ボトルネック'])
+    expect(terms('このAPIはレイテンシがボトルネックになってるんですよね')).toEqual([
+      'API',
+      'レイテンシ',
+      'ボトルネック'
+    ])
     expect(terms('デューデリジェンスの結果を見てからアサインを決めます')).toEqual(['デューデリジェンス', 'アサイン'])
     expect(terms('仕様の齟齬がないようにエビデンスを残してください')).toEqual(['齟齬', 'エビデンス'])
   })

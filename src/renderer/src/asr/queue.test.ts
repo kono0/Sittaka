@@ -23,7 +23,11 @@ describe('TranscriptionQueue', () => {
   it('transcribes jobs one at a time in arrival order', async () => {
     const log: number[] = []
     const lines: TranscriptLine[] = []
-    const q = new TranscriptionQueue(fakeEngine({ 16000: 'こんにちは', 32000: 'はい' }, log), (l) => lines.push(l), () => {})
+    const q = new TranscriptionQueue(
+      fakeEngine({ 16000: 'こんにちは', 32000: 'はい' }, log),
+      (l) => lines.push(l),
+      () => {}
+    )
     q.push('other', new Float32Array(16000), 0)
     q.push('self', new Float32Array(32000), 0)
     expect(q.backlog).toBe(1)

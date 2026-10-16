@@ -1,4 +1,6 @@
-import { compare, totals, type Trace } from './trace'
+import { totals, type Trace } from './trace'
+
+type Judgment = Extract<NonNullable<Trace['ai']>, { status: 'ok' }>['judgments'][number]
 
 const MAX_TRACES = 300
 const SPEAKER: Record<Trace['speaker'], string> = { other: '相手', self: '自分' }
@@ -9,6 +11,13 @@ const REASON: Record<string, string> = {
   katakana: 'カタカナ語',
   acronym: '略語',
   organization: '組織名'
+}
+
+const LEVEL: Record<number, string> = {
+  1: '1 = だれでも使う日常語',
+  2: '2 = この分野で決まった意味で使う普通の言葉',
+  3: '3 = 専門用語・業界用語',
+  4: '4 = まず知らない専門用語・略語'
 }
 
 type Run = (text: string) => Promise<{ trace: Trace }>
@@ -209,30 +218,41 @@ export class Inspector {
     if (ai.status === 'error') {
       body.push(el('p', 'error', `エラー: ${ai.error}（${ai.ms}ms）`))
     } else {
-      const c = compare(
-        t.extracted?.nouns ?? [],
-        ai.terms.map((x) => x.text)
-      )
-      const readings = new Map(ai.terms.map((x) => [x.text, x.reading]))
-      const group = (label: string, words: string[], cls: string) => {
+      const level = (n: number) => el('span', `level l${n}`, String(n))
+      const group = (label: string, items: Judgment[], cls: (j: Judgment) => string) => {
         const d = el('div', 'ai-group')
-        d.append(el('span', 'label', `${label}（${words.length}）`))
+        d.append(el('span', 'label', `${label}（${items.length}）`))
         const chips = el('div', 'chips')
-        for (const w of words) {
-          const p = el('span', `pill ${cls}`, w)
-          if (readings.get(w)) p.title = readings.get(w)!
+        for (const j of items) {
+          const p = el('span', `pill ${cls(j)}`)
+          p.append(j.candidate === j.text ? j.text : `${j.candidate} → ${j.text}`, level(j.level))
+          p.title = `${LEVEL[j.level] ?? ''}${j.kept ? '（残した）' : '（外した）'}`
           chips.append(p)
         }
-        if (!words.length) chips.append(el('span', 'note', 'なし'))
+        if (!items.length) chips.append(el('span', 'note', 'なし'))
         d.append(chips)
         return d
       }
+      const judged = new Set(ai.judgments.filter((j) => !j.added).map((j) => j.candidate))
+      const missing = (t.extracted?.nouns ?? []).filter((n) => !judged.has(n))
       body.push(
-        el('p', 'note', `応答 ${ai.ms}ms`),
-        group('残した', c.kept, 'kept'),
-        group('外した', c.dropped, 'dropped'),
-        group('足した・直した', c.added, 'added')
+        el(
+          'p',
+          'note',
+          `応答 ${ai.ms}ms ・ 数字は AI の採点（1 日常語 〜 4 難しい専門用語）。設定の「拾う量」で残す段階が変わります`
+        ),
+        group(
+          '候補の採点',
+          ai.judgments.filter((j) => !j.added),
+          (j) => (j.kept ? 'kept' : 'dropped')
+        ),
+        group(
+          'AI が足した言葉',
+          ai.judgments.filter((j) => j.added),
+          (j) => (j.kept ? 'added' : 'dropped')
+        )
       )
+      if (missing.length) body.push(el('p', 'error', `AI が採点しなかった候補: ${missing.join('、')}`))
     }
     body.push(fold('AI に送った文', ai.prompt), fold('AI が返したそのままの答え', ai.raw || '（空）'))
     return stage('4. Sarashina の判断（sarashina3-nano）', ...body)

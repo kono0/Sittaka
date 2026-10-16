@@ -123,12 +123,20 @@ function judge(chunk: Token[]): Term | null {
   if (reasons.length === 0) return null
 
   const term: Term = { text, reasons }
-  // 辞書にない部分が混じると読みが分からないので、そのときは付けない
-  const readings = chunk.map((t) => (KANJI.test(t.surface_form) ? t.reading : t.surface_form))
-  if (KANJI.test(text) && readings.every((r) => r && r !== '*')) {
-    term.reading = toHiragana(readings.join(''))
-  }
+  const reading = readingOf(chunk)
+  if (reading) term.reading = reading
   return term
+}
+
+/**
+ * 漢字を含む言葉の読み（ひらがな）。辞書にない部分が混じると読みが分からないので、そのときは返さない
+ */
+export function readingOf(tokens: Token[]): string | undefined {
+  const text = tokens.map((t) => t.surface_form).join('')
+  if (!KANJI.test(text)) return undefined
+  const readings = tokens.map((t) => (KANJI.test(t.surface_form) ? t.reading : t.surface_form))
+  if (!readings.every((r) => r && r !== '*')) return undefined
+  return toHiragana(readings.join(''))
 }
 
 function toHiragana(s: string): string {

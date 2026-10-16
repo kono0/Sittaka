@@ -23,6 +23,7 @@ describe('totals', () => {
         extracted: { terms: [{ text: '関数', reasons: [] }], nouns: ['変数', '関数', '今日'], tokens: [] },
         ai: {
           status: 'ok',
+          judgments: [],
           terms: [
             { text: '変数', reading: '' },
             { text: 'スコープ', reading: '' }

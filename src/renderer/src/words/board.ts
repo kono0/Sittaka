@@ -11,7 +11,10 @@ export interface BoardWord {
   speaker: Speaker
   /** その言葉が出たときの会話（意味を調べるときに AI に渡す） */
   context: string[]
-  meaning?: { state: 'loading' } | { state: 'done'; word: string; reading: string; text: string } | { state: 'error'; text: string }
+  meaning?:
+    | { state: 'loading' }
+    | { state: 'done'; word: string; reading: string; text: string }
+    | { state: 'error'; text: string }
   /** 会話の中で出てきた回数 */
   count: number
   lastSeen: number

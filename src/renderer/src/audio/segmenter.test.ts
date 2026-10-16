@@ -37,13 +37,30 @@ describe('Segmenter', () => {
     expect(run(seg, [...silence(1000), ...tone(100), ...silence(1000)])).toHaveLength(0)
   })
 
-  it('splits long speech at maxSegmentMs', () => {
-    const seg = new Segmenter({ maxSegmentMs: 3000 })
+  it('ends a long utterance at a short breath', () => {
+    const seg = new Segmenter({ softMaxSegmentMs: 3000 })
     // 実際の会話のように、息継ぎ程度の短い切れ目を挟みながら7秒話し続ける
     const talking = Array.from({ length: 7 }, () => [...tone(800), ...silence(200)]).flat()
     const out = run(seg, [...silence(500), ...talking, ...silence(1000)])
     expect(out.length).toBe(3)
-    for (const s of out) expect(s.durationMs).toBeLessThanOrEqual(3000)
+    // 3秒を過ぎた最初の息継ぎで切れる
+    for (const s of out.slice(0, 2)) {
+      expect(s.durationMs).toBeGreaterThanOrEqual(3000)
+      expect(s.durationMs).toBeLessThanOrEqual(3300)
+    }
+  })
+
+  it('splits non-stop speech at the quietest moment, not mid-word', () => {
+    const seg = new Segmenter({ maxSegmentMs: 3000, splitSearchMs: 1500 })
+    // 息継ぎなしで話し続け、2.2秒あたりだけ少し声が小さくなる
+    const talking = [...tone(2200), ...tone(100, 0.05), ...tone(2700)]
+    const out = run(seg, [...silence(500), ...talking])
+    const last = seg.end()
+    expect(out.length).toBe(1)
+    // 前の余白 0.2秒 + 2.2秒 + 小さくなった 0.1秒 で切れる
+    expect(out[0].durationMs).toBeCloseTo(2500)
+    // 残りは捨てずに次の区間に入る
+    expect(out[0].durationMs + (last?.durationMs ?? 0)).toBeCloseTo(200 + 5000)
   })
 
   it('flushes pending speech on end()', () => {

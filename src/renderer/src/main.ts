@@ -144,6 +144,11 @@ async function start(): Promise<void> {
         // モデルの準備が終わるまでの発話は捨てる
         queue?.push(speaker, seg.audio, capturedAt)
         renderStats()
+      },
+      onReconnect: (error) => {
+        status.textContent = error
+          ? `音声機器が切り替わったあと、取り込み直せませんでした: ${error}（停止して開始し直してください）`
+          : '音声機器が切り替わったので、取り込み直しました'
       }
     })
     await capture.start()
