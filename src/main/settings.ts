@@ -28,7 +28,20 @@ function read(): StoredSettings {
   }
 }
 
-const write = (s: StoredSettings) => writeFile(file(), JSON.stringify(s, null, 2))
+/**
+ * 読んで書き換えて書き戻す処理を、1つずつ順番に行う。
+ * AI を切り替えてすぐキーを保存したときなどに、片方の変更が消えないようにする。
+ */
+let queue: Promise<unknown> = Promise.resolve()
+function update(change: (s: StoredSettings) => StoredSettings): Promise<void> {
+  const run = queue
+    .catch(() => {})
+    .then(async () => {
+      await writeFile(file(), JSON.stringify(change(read()), null, 2))
+    })
+  queue = run
+  return run
+}
 
 export function getProvider(): ProviderId {
   const p = read().provider
@@ -37,7 +50,7 @@ export function getProvider(): ProviderId {
 
 export async function setProvider(provider: ProviderId): Promise<void> {
   if (!(provider in PROVIDERS)) throw new Error(`知らない AI です: ${provider}`)
-  await write({ ...read(), provider })
+  await update((s) => ({ ...s, provider }))
 }
 
 export function getKey(provider: ProviderId): string | null {
@@ -51,15 +64,13 @@ export function getKey(provider: ProviderId): string | null {
 }
 
 export async function setKey(provider: ProviderId, key: string | null): Promise<void> {
-  const s = read()
-  const keys = { ...s.keys }
-  if (key) {
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('この PC ではキーを暗号化して保存できません')
-    keys[provider] = safeStorage.encryptString(key).toString('base64')
-  } else {
-    delete keys[provider]
-  }
-  await write({ ...s, keys })
+  if (key && !safeStorage.isEncryptionAvailable()) throw new Error('この PC ではキーを暗号化して保存できません')
+  await update((s) => {
+    const keys = { ...s.keys }
+    if (key) keys[provider] = safeStorage.encryptString(key).toString('base64')
+    else delete keys[provider]
+    return { ...s, keys }
+  })
 }
 
 /** 画面に出すための、キーの有無だけの一覧（キーそのものは渡さない） */

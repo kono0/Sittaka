@@ -66,6 +66,9 @@ export class ApiError extends Error {
   }
 }
 
+/** 1回の呼び出しで待つ最長の時間 */
+const REQUEST_TIMEOUT_MS = 20000
+
 type Fetch = (url: string, init: RequestInit) => Promise<Response>
 type Clock = { now: () => number; sleep: (ms: number) => Promise<void> }
 
@@ -108,7 +111,7 @@ function claudeWire(apiKey: string): Wire {
     body: (model, messages, schema, maxTokens) => ({
       model,
       max_tokens: maxTokens,
-      temperature: 0.2,
+      // Haiku 5.5 などの新しいモデルは temperature などの指定を受け付けない（400 になる）ので送らない
       system: messages
         .filter((m) => m.role === 'system')
         .map((m) => m.content)
@@ -146,7 +149,8 @@ function wireFor(provider: ProviderId, apiKey: string): Wire {
 export class AiClient implements ChatClient {
   private readonly info: ProviderInfo
   private readonly wire: Wire
-  private nextSlot: Record<Model, number> = { fast: 0, smart: 0 }
+  /** 実際のモデル名ごとの、次に送ってよい時刻（fast と smart が同じモデルなら枠も共有する） */
+  private nextSlot = new Map<string, number>()
 
   constructor(
     provider: ProviderId,
@@ -160,7 +164,7 @@ export class AiClient implements ChatClient {
 
   /** いま送ると何ミリ秒待たされるか（混んでいたら呼び出し側で諦める判断に使う） */
   waitFor(model: Model): number {
-    return Math.max(0, this.nextSlot[model] - this.clock.now())
+    return Math.max(0, (this.nextSlot.get(this.info.models[model]) ?? 0) - this.clock.now())
   }
 
   async json<T>(
@@ -172,33 +176,45 @@ export class AiClient implements ChatClient {
   ): Promise<T> {
     // 上限を超えないよう、モデルごとに呼び出しの間隔をあける
     const { now, sleep } = this.clock
+    const name = this.info.models[model]
     const interval = 60000 / this.info.rpm[model]
-    const slot = Math.max(now(), this.nextSlot[model])
-    this.nextSlot[model] = slot + interval
+    const slot = Math.max(now(), this.nextSlot.get(name) ?? 0)
+    this.nextSlot.set(name, slot + interval)
     if (slot > now()) await sleep(slot - now())
 
-    const name = this.info.models[model]
     trace.model = name
     const started = now()
-    const res = await this.fetchImpl(this.wire.url, {
-      method: 'POST',
-      headers: this.wire.headers,
-      body: JSON.stringify(this.wire.body(name, messages, schema, maxTokens))
-    })
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      trace.raw = text
-      trace.ms = now() - started
-      let message = `HTTP ${res.status}`
-      try {
-        message = this.wire.error(JSON.parse(text)) ?? message
-      } catch {
-        // 本文がなくてもステータスで分かる
+    // つながったまま返事が来ないときに、言葉の表示や意味の調べが止まったままにならないよう、本文を読み終えるまでの時間に上限を設ける
+    const abort = new AbortController()
+    const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS)
+    try {
+      const res = await this.fetchImpl(this.wire.url, {
+        method: 'POST',
+        headers: this.wire.headers,
+        body: JSON.stringify(this.wire.body(name, messages, schema, maxTokens)),
+        signal: abort.signal
+      })
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        trace.raw = text
+        let message = `HTTP ${res.status}`
+        try {
+          message = this.wire.error(JSON.parse(text)) ?? message
+        } catch {
+          // 本文がなくてもステータスで分かる
+        }
+        throw new ApiError(res.status, message, this.info.label)
       }
-      throw new ApiError(res.status, message, this.info.label)
+      trace.raw = this.wire.content(await res.json())
+    } catch (err) {
+      if (abort.signal.aborted) {
+        throw new ApiError(408, `${REQUEST_TIMEOUT_MS / 1000}秒待っても返事がありませんでした`, this.info.label)
+      }
+      throw err
+    } finally {
+      clearTimeout(timer)
+      trace.ms = now() - started
     }
-    trace.raw = this.wire.content(await res.json())
-    trace.ms = now() - started
     return parseJson<T>(trace.raw)
   }
 }

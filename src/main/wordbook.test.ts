@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -7,6 +7,24 @@ import { Wordbook } from './wordbook'
 const tmpFile = () => join(mkdtempSync(join(tmpdir(), 'wb-')), 'wordbook.json')
 
 describe('Wordbook', () => {
+  it('stores the shortened folder name on moved words', async () => {
+    const wb = new Wordbook(tmpFile())
+    await wb.save({ word: '変数', context: '', savedAt: '2026-10-15T10:00:00Z' })
+    await wb.move(['変数'], 'あ'.repeat(50))
+    expect(wb.list().folders).toEqual(['あ'.repeat(40)])
+    expect(wb.list().entries[0].folder).toBe('あ'.repeat(40))
+  })
+
+  it('keeps saving after a failed write', async () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'wb-')), 'later')
+    const file = join(dir, 'wordbook.json')
+    const wb = new Wordbook(file)
+    await expect(wb.save({ word: '稟議', context: '', savedAt: '2026-10-15T10:00:00Z' })).rejects.toThrow()
+    mkdirSync(dir)
+    await wb.save({ word: 'KPI', context: '', savedAt: '2026-10-15T10:01:00Z' })
+    expect(JSON.parse(readFileSync(file, 'utf8')).entries).toHaveLength(2)
+  })
+
   it('saves, merges and removes entries on disk', async () => {
     const file = tmpFile()
     const wb = new Wordbook(file)

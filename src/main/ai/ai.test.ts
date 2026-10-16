@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { AiClient, ApiError, describeError, parseJson, type ChatClient, type ChatTrace, type Model } from './chat'
 import { explainTerm } from './explain'
 import { LevelMemory, refineTerms } from './refine'
@@ -65,6 +65,37 @@ describe('AiClient', () => {
     expect(body.system).toBe('sys')
     expect(body.messages).toEqual([{ role: 'user', content: 'hi' }])
     expect(body.tool_choice).toEqual({ type: 'tool', name: 'result' })
+    // 新しい Claude は temperature を受け付けない
+    expect(body).not.toHaveProperty('temperature')
+  })
+
+  it('shares one rate limit when fast and smart are the same model', async () => {
+    const t = { now: 0 }
+    const client = new AiClient('gemini', 'g', async () => okResponse('{}'), clock(t))
+    await client.json('fast', [], {}, 10)
+    // Gemini は1分15回 → 4秒おき。smart も同じモデルなので待たされる
+    expect(client.waitFor('smart')).toBe(4000)
+  })
+
+  it('gives up on a request that never answers', async () => {
+    const client = new AiClient(
+      'sarashina',
+      'k',
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+        })
+    )
+    vi.useFakeTimers()
+    try {
+      const pending = client.json('fast', [], {}, 10).catch((e) => e)
+      await vi.advanceTimersByTimeAsync(20000)
+      const err = (await pending) as ApiError
+      expect(err).toBeInstanceOf(ApiError)
+      expect(err.status).toBe(408)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('spaces out calls to stay under the per-minute limit', async () => {

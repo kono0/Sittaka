@@ -43,7 +43,10 @@ export function registerAiIpc(): void {
   ipcMain.handle('settings:setProvider', async (_e, provider: ProviderId) => {
     await setProvider(provider)
     client = null
+    levels.clear()
   })
+  // 通話ごとに、これまでに出た言葉と難しさの記憶を空にする（前の通話の言葉を AI に送らない）
+  ipcMain.handle('ai:reset', () => levels.clear())
   ipcMain.handle('settings:setKey', async (_e, provider: ProviderId, key: string | null) => {
     await setKey(provider, key?.trim() || null)
     client = null

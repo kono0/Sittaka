@@ -14,6 +14,8 @@ export function needsOnboarding(): boolean {
 interface Options {
   /** 設定タブのマイクの選択肢。案内ではこれを写して使い、選んだら設定側にも反映する */
   micSelect: HTMLSelectElement
+  /** 聞き取り中か。聞き取り中はモデルが読み込み済みなので、ダウンロードの画面を飛ばす */
+  isRunning(): boolean
   onDone(): void
 }
 
@@ -21,7 +23,7 @@ interface Options {
  * 初めて起動したときの案内。使い方とデータの扱いを説明し、
  * 音声モデルのダウンロード・マイク・AI のキーを順に済ませてもらう（どれも後から設定で変えられる）。
  */
-export function showOnboarding({ micSelect, onDone }: Options): void {
+export function showOnboarding({ micSelect, isRunning, onDone }: Options): void {
   const overlay = el('div', 'onboarding')
   const card = el('div', 'onboarding-card')
   overlay.append(card)
@@ -29,7 +31,8 @@ export function showOnboarding({ micSelect, onDone }: Options): void {
 
   const steps = [welcome, model, mic, ai]
   let index = 0
-  let modelReady = false
+  // 聞き取り中に案内を開き直したときは、動いているエンジンを止めないよう準備済みとして扱う
+  let modelReady = isRunning()
 
   const finish = () => {
     try {

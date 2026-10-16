@@ -62,12 +62,12 @@ export class Wordbook {
 
   /** 言葉をフォルダに移す。folder が null なら未分類に戻す */
   async move(words: string[], folder: string | null): Promise<void> {
-    if (folder !== null) this.addFolder(folder)
+    const name = folder === null ? null : this.addFolder(folder)
     const target = new Set(words)
     for (const e of this.entries) {
       if (!target.has(e.word)) continue
-      if (folder === null) delete e.folder
-      else e.folder = folder
+      if (name === null) delete e.folder
+      else e.folder = name
     }
     return this.flush()
   }
@@ -79,7 +79,7 @@ export class Wordbook {
 
   async renameFolder(from: string, to: string): Promise<void> {
     const name = cleanName(to)
-    if (!name || from === name) return this.writing
+    if (!name || from === name) return
     if (this.folders.includes(name)) throw new Error(`「${name}」というフォルダはもうあります`)
     this.folders = this.folders.map((f) => (f === from ? name : f))
     for (const e of this.entries) if (e.folder === from) e.folder = name
@@ -93,17 +93,21 @@ export class Wordbook {
     return this.flush()
   }
 
-  private addFolder(name: string): void {
+  /** フォルダを作り（すでにあればそのまま）、長さなどを整えた名前を返す */
+  private addFolder(name: string): string {
     const n = cleanName(name)
     if (!n) throw new Error('フォルダの名前を入れてください')
     if (!this.folders.includes(n)) this.folders.push(n)
+    return n
   }
 
   private flush(): Promise<void> {
     // 書き込みが重ならないよう順番に行う
     const data = JSON.stringify({ folders: this.folders, entries: this.entries }, null, 2)
-    this.writing = this.writing.then(() => writeFile(this.file, data))
-    return this.writing
+    // 前の書き込みが失敗していても（ファイルのロックなど）、今回の分は書く
+    const write = this.writing.catch(() => {}).then(() => writeFile(this.file, data))
+    this.writing = write
+    return write
   }
 }
 

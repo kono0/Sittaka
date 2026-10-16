@@ -74,6 +74,8 @@ declare global {
         context: string[],
         word: string
       ): Promise<{ ok: true; value: { word: string; reading: string; meaning: string } } | { ok: false; error: string }>
+      /** 新しい通話の前に、これまでに出た言葉の記憶を消す */
+      reset(): Promise<void>
     }
     wordbook: {
       list(): Promise<{ folders: string[]; entries: WordbookEntry[] }>

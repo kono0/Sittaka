@@ -186,7 +186,7 @@ void renderMics().then(() => {
 })
 
 function openOnboarding(): void {
-  showOnboarding({ micSelect, onDone: () => void renderSettings() })
+  showOnboarding({ micSelect, isRunning: () => running, onDone: () => void renderSettings() })
 }
 $<HTMLButtonElement>('onboarding-again').addEventListener('click', openOnboarding)
 $<HTMLButtonElement>('open-privacy').addEventListener('click', () => void window.appInfo.openDoc('privacy'))
@@ -218,6 +218,7 @@ async function start(): Promise<void> {
   recDot.title = '聞き取り中'
   engineSelect.disabled = true
   history.length = 0
+  void window.ai.reset()
   transcript.replaceChildren()
   board.clear()
   renderBoard()

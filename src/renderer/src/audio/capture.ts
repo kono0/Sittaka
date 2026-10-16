@@ -125,7 +125,12 @@ export class CallCapture {
   }
 
   private attach(speaker: Speaker, stream: MediaStream): void {
-    const ctx = this.ctx!
+    const ctx = this.ctx
+    if (!ctx) {
+      // 機器の許可を待っている間に「停止」されたときは、遅れて届いた取り込みをすぐ止める
+      stream.getTracks().forEach((t) => t.stop())
+      return
+    }
     const src = ctx.createMediaStreamSource(stream)
     const node = new AudioWorkletNode(ctx, 'frame-collector')
     // つなぎ直しても、それまでの背景ノイズの推定は引き継ぐ

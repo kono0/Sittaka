@@ -32,7 +32,13 @@ export async function findTerms(
     if (extracted.nouns.length > 0) {
       trace.ai = await window.ai.refine(context, text, extracted.nouns, amount)
     }
-    const terms = trace.ai?.status === 'ok' ? trace.ai.terms : extracted.terms
+    let terms: { text: string; reading?: string }[] = extracted.terms
+    if (trace.ai?.status === 'ok') {
+      // AI が採点し忘れた候補は、規則で選んだ結果をそのまま使う
+      const judged = new Set(trace.ai.judgments.filter((j) => !j.added).map((j) => j.candidate))
+      const shown = new Set(trace.ai.terms.map((t) => t.text))
+      terms = [...trace.ai.terms, ...extracted.terms.filter((t) => !judged.has(t.text) && !shown.has(t.text))]
+    }
     trace.decidedBy = trace.ai?.status === 'ok' ? 'ai' : 'rules'
     trace.final = terms.map((t) => t.text)
     return { trace, terms }
