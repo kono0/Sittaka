@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "通話中の会話を文字起こしし、知らない単語をこっそり調べるデスクトップアプリ",
+  "license": "MIT",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
