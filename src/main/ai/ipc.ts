@@ -82,7 +82,11 @@ export function registerAiIpc(): void {
 
   ipcMain.handle('wordbook:list', () => wordbook.list())
   ipcMain.handle('wordbook:save', (_e, entry: WordbookEntry) => wordbook.save(entry))
-  ipcMain.handle('wordbook:remove', (_e, word: string) => wordbook.remove(word))
+  ipcMain.handle('wordbook:remove', (_e, words: string[]) => wordbook.remove(words))
+  ipcMain.handle('wordbook:move', (_e, words: string[], folder: string | null) => wordbook.move(words, folder))
+  ipcMain.handle('wordbook:createFolder', (_e, name: string) => wordbook.createFolder(name))
+  ipcMain.handle('wordbook:renameFolder', (_e, from: string, to: string) => wordbook.renameFolder(from, to))
+  ipcMain.handle('wordbook:deleteFolder', (_e, name: string) => wordbook.deleteFolder(name))
 }
 
 /** 漢字の言葉は、AI の読みより辞書の読みを優先する（AI の読みは毎回ぶれるため） */

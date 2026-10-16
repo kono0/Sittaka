@@ -454,27 +454,167 @@ main {
 }
 
 /* 単語帳 */
-#wordbook-list {
-  margin: 8px 0 0;
+.wordbook {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+.wb-folders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 12px;
+}
+.wb-folder {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.wb-folder .n {
+  font-size: 10px;
+  color: var(--muted);
+}
+.wb-folder.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.wb-folder.add {
+  border-style: dashed;
+  color: var(--muted);
+}
+.wb-folder.drop {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.wb-name {
+  width: 160px;
+  font-size: 12px;
+}
+.wb-tools,
+.wb-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.wb-tools {
+  margin: 10px 0 4px;
+}
+.wb-tools button,
+.wb-bar button,
+.wb-bar select {
+  width: auto;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+.wb-tools button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.wb-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--danger);
+}
+.wb-error:empty {
+  display: none;
+}
+.wb-list {
+  flex: 1;
+  margin: 0;
   padding: 0;
   list-style: none;
   user-select: text;
 }
-#wordbook-list:empty::before {
+.wb-list:empty::before {
   content: attr(data-empty);
   font-size: 12px;
   color: var(--muted);
 }
-#wordbook-list li {
+.wb-list li {
   position: relative;
-  padding: 10px 24px 10px 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 24px 10px 4px;
   border-bottom: 1px solid var(--line);
+  border-radius: 6px;
 }
-#wordbook-list .ctx {
+.wb-list.selecting li {
+  cursor: pointer;
+  user-select: none;
+}
+.wb-list li.checked {
+  background: var(--accent-soft);
+}
+.wb-list input[type='checkbox'] {
+  margin-top: 4px;
+  accent-color: var(--accent);
+  pointer-events: none;
+}
+.wb-list .body {
+  min-width: 0;
+}
+.wb-list .head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wb-list .reading {
+  font-size: 11px;
+  color: var(--muted);
+}
+.wb-list .tag {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  font-size: 10px;
+  color: var(--muted);
+}
+.wb-list .meaning {
+  font-size: 13px;
+}
+.wb-list .ctx {
   display: block;
   margin-top: 2px;
   font-size: 11px;
   color: var(--muted);
+}
+.wb-list .remove {
+  position: absolute;
+  top: 8px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+}
+.wb-bar {
+  position: sticky;
+  bottom: 0;
+  margin: 0 -12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.wb-bar[hidden] {
+  display: none;
+}
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+button.armed {
+  background: var(--danger);
+  color: #fff;
 }
 
 /* 設定 */
@@ -695,4 +835,14 @@ main {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.wb-bar .note {
+  flex-basis: 100%;
+}
+.wb-bar .spacer {
+  display: none;
+}
+.wb-bar select {
+  flex: 1;
+  min-width: 0;
 }

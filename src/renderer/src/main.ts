@@ -4,6 +4,7 @@ import { TranscriptionQueue, type TranscriptLine } from './asr/queue'
 import { ReazonSpeechTranscriber } from './asr/reazonspeech'
 import type { Transcriber } from './asr/transcriber'
 import { Inspector } from './inspect/view'
+import { WordbookView } from './wordbook/view'
 import { WordBoard, type BoardWord } from './words/board'
 import { findTerms, type Amount } from './words/pipeline'
 
@@ -41,6 +42,7 @@ const history: TranscriptLine[] = []
 const board = new WordBoard()
 // 検証タブ。手入力の文は会話の流れとは別に、直前の会話だけを文脈にして試す
 const inspector = new Inspector($('inspect'), (text) => findTerms(text, 'other', recentContext(), amount, 'manual'))
+const wordbookView = new WordbookView($('wordbook'))
 /** ショートカットで選べるのは、言葉の一覧の上から9個まで */
 const HOTKEY_SLOTS = 9
 
@@ -114,7 +116,7 @@ for (const tab of tabs) {
   tab.addEventListener('click', () => {
     for (const t of tabs) t.classList.toggle('active', t === tab)
     for (const v of document.querySelectorAll<HTMLElement>('.view')) v.hidden = v.dataset.view !== tab.dataset.view
-    if (tab.dataset.view === 'wordbook') void renderWordbook()
+    if (tab.dataset.view === 'wordbook') void wordbookView.render()
     if (tab.dataset.view === 'settings') {
       void renderSettings()
       void renderMics()
@@ -402,43 +404,6 @@ function card(w: BoardWord): HTMLElement {
   })
   el.append(remove)
   return el
-}
-
-async function renderWordbook(): Promise<void> {
-  const list = $<HTMLOListElement>('wordbook-list')
-  const entries = await window.wordbook.list()
-  list.replaceChildren(
-    ...entries.map((e) => {
-      const li = document.createElement('li')
-      const word = document.createElement('strong')
-      word.textContent = e.word
-      li.append(word)
-      if (e.reading) {
-        const r = document.createElement('span')
-        r.className = 'reading note'
-        r.textContent = ` ${e.reading}`
-        li.append(r)
-      }
-      const meaning = document.createElement('div')
-      meaning.textContent = e.meaning ?? '（意味はまだありません）'
-      const ctx = document.createElement('span')
-      ctx.className = 'ctx'
-      // 保存した会話のうち、その言葉が出てくる発言を見せる
-      const lines = e.context.split('\n')
-      const line = lines.find((l) => l.includes(e.word)) ?? lines[lines.length - 1] ?? ''
-      ctx.textContent = `${new Date(e.savedAt).toLocaleString('ja-JP')} ・ ${line}`
-      const remove = document.createElement('button')
-      remove.className = 'remove'
-      remove.title = '単語帳から削除'
-      remove.textContent = '×'
-      remove.addEventListener('click', async () => {
-        await window.wordbook.remove(e.word)
-        await renderWordbook()
-      })
-      li.append(meaning, ctx, remove)
-      return li
-    })
-  )
 }
 
 async function renderSettings(): Promise<void> {

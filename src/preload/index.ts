@@ -41,7 +41,11 @@ contextBridge.exposeInMainWorld('ai', {
 contextBridge.exposeInMainWorld('wordbook', {
   list: () => ipcRenderer.invoke('wordbook:list'),
   save: (entry: unknown) => ipcRenderer.invoke('wordbook:save', entry),
-  remove: (word: string) => ipcRenderer.invoke('wordbook:remove', word)
+  remove: (words: string[]) => ipcRenderer.invoke('wordbook:remove', words),
+  move: (words: string[], folder: string | null) => ipcRenderer.invoke('wordbook:move', words, folder),
+  createFolder: (name: string) => ipcRenderer.invoke('wordbook:createFolder', name),
+  renameFolder: (from: string, to: string) => ipcRenderer.invoke('wordbook:renameFolder', from, to),
+  deleteFolder: (name: string) => ipcRenderer.invoke('wordbook:deleteFolder', name)
 })
 
 contextBridge.exposeInMainWorld('panel', {

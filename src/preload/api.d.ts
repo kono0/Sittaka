@@ -4,6 +4,7 @@ export interface WordbookEntry {
   meaning?: string
   context: string
   savedAt: string
+  folder?: string
 }
 
 // main プロセス側（src/main/terms/ipc.ts・src/main/ai/ipc.ts）と同じ形
@@ -62,9 +63,15 @@ declare global {
       ): Promise<{ ok: true; value: { word: string; reading: string; meaning: string } } | { ok: false; error: string }>
     }
     wordbook: {
-      list(): Promise<WordbookEntry[]>
+      list(): Promise<{ folders: string[]; entries: WordbookEntry[] }>
       save(entry: WordbookEntry): Promise<void>
-      remove(word: string): Promise<void>
+      remove(words: string[]): Promise<void>
+      /** folder が null なら未分類に戻す */
+      move(words: string[], folder: string | null): Promise<void>
+      createFolder(name: string): Promise<void>
+      renameFolder(from: string, to: string): Promise<void>
+      /** 中の言葉は消さずに未分類に戻す */
+      deleteFolder(name: string): Promise<void>
     }
     panel: {
       /** パネルの幅を広げる（検証タブ用） */
