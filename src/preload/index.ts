@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('terms', {
 contextBridge.exposeInMainWorld('hotkeys', {
   onKeep(handler: (n: number) => void): void {
     ipcRenderer.on('hotkey:keep', (_e, n: number) => handler(n))
+  },
+  onToggleMode(handler: () => void): void {
+    ipcRenderer.on('hotkey:toggleMode', () => handler())
   }
 })
 
@@ -42,5 +45,6 @@ contextBridge.exposeInMainWorld('wordbook', {
 })
 
 contextBridge.exposeInMainWorld('panel', {
-  setWide: (wide: boolean) => ipcRenderer.invoke('panel:setWide', wide)
+  setWide: (wide: boolean) => ipcRenderer.invoke('panel:setWide', wide),
+  setMode: (mode: 'full' | 'mini') => ipcRenderer.invoke('panel:setMode', mode)
 })

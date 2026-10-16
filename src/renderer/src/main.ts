@@ -15,9 +15,19 @@ const transcript = $<HTMLOListElement>('transcript')
 const stats = $<HTMLElement>('stats')
 const keptEl = $<HTMLDivElement>('kept')
 const wordsEl = $<HTMLDivElement>('words')
-const meters: Record<Speaker, HTMLMeterElement> = {
+const levelBars: Record<Speaker, HTMLElement> = {
   other: $('level-other'),
   self: $('level-self')
+}
+const miniWordsEl = $<HTMLDivElement>('mini-words')
+const miniKeptEl = $<HTMLDivElement>('mini-kept')
+const recDot = $<HTMLSpanElement>('rec')
+/** 小さい表示で出す言葉の数 */
+const MINI_SLOTS = 3
+
+/** 音量のバー。0.3 で振り切る */
+function setLevel(speaker: Speaker, level: number): void {
+  levelBars[speaker].style.width = `${Math.min(100, (level / 0.3) * 100)}%`
 }
 
 const SPEAKER_LABEL: Record<Speaker, string> = { other: '相手', self: '自分' }
@@ -62,6 +72,33 @@ try {
 }
 
 toggle.addEventListener('click', () => (running ? stop() : start()))
+$<HTMLButtonElement>('close').addEventListener('click', () => window.close())
+
+// 表示の大きさ: full（縦長のパネル）と mini（画面の端の小さな帯）
+type Mode = 'full' | 'mini'
+let mode: Mode = 'full'
+try {
+  if (localStorage.getItem('mode') === 'mini') mode = 'mini'
+} catch {
+  // 保存できない環境でも既定値で動く
+}
+const modeButton = $<HTMLButtonElement>('mode')
+function setMode(next: Mode): void {
+  mode = next
+  document.body.classList.toggle('mini', mode === 'mini')
+  document.body.classList.toggle('full', mode === 'full')
+  modeButton.title = mode === 'mini' ? '広げる（Ctrl+Alt+M）' : '小さくする（Ctrl+Alt+M）'
+  modeButton.setAttribute('aria-label', mode === 'mini' ? '広げる' : '小さくする')
+  void window.panel.setMode(mode)
+  try {
+    localStorage.setItem('mode', mode)
+  } catch {
+    // 無視
+  }
+}
+modeButton.addEventListener('click', () => setMode(mode === 'mini' ? 'full' : 'mini'))
+window.hotkeys.onToggleMode(() => setMode(mode === 'mini' ? 'full' : 'mini'))
+setMode(mode)
 
 // 会話ログを開いたときは最新の行を見せる
 $<HTMLDetailsElement>('log').addEventListener('toggle', () => (transcript.scrollTop = transcript.scrollHeight))
@@ -162,6 +199,8 @@ $<HTMLButtonElement>('key-remove').addEventListener('click', async () => {
 async function start(): Promise<void> {
   running = true
   toggle.textContent = '停止'
+  document.body.classList.add('running')
+  recDot.title = '聞き取り中'
   engineSelect.disabled = true
   history.length = 0
   transcript.replaceChildren()
@@ -178,7 +217,7 @@ async function start(): Promise<void> {
     }
     // 先に音声の取り込みを始めて、モデルの準備中もメーターで音が入っているか確かめられるようにする
     capture = new CallCapture({
-      onLevel: (speaker, level) => (meters[speaker].value = level),
+      onLevel: setLevel,
       onSegment: (speaker, seg, capturedAt) => {
         // モデルの準備が終わるまでの発話は捨てる
         queue?.push(speaker, seg.audio, capturedAt)
@@ -186,8 +225,8 @@ async function start(): Promise<void> {
       },
       micDevice: () => micDevice,
       onReconnect: (error) => {
-        meters.self.value = 0
-        meters.other.value = 0
+        setLevel('self', 0)
+        setLevel('other', 0)
         status.textContent = error
           ? `音声の取り込み直しに失敗しました: ${error}（停止して開始し直してください）`
           : '音声機器の変更に合わせて、取り込み直しました'
@@ -227,9 +266,11 @@ function stop(resetStatus = true): void {
   engine = null
   queue = null
   toggle.textContent = '開始'
+  document.body.classList.remove('running')
+  recDot.title = '停止中'
   engineSelect.disabled = false
-  meters.other.value = 0
-  meters.self.value = 0
+  setLevel('other', 0)
+  setLevel('self', 0)
   if (resetStatus) status.textContent = '停止しました。'
 }
 
@@ -319,10 +360,14 @@ function highlight(el: HTMLElement, text: string, words: string[]): void {
 }
 
 function renderBoard(): void {
-  keptEl.replaceChildren(...board.kept().map(card))
-  wordsEl.replaceChildren(
-    ...board.recent().map((w, i) => chip(w, i < HOTKEY_SLOTS ? i + 1 : null, () => keepWord(w.text)))
-  )
+  const kept = board.kept().reverse()
+  const recent = board.recent()
+  // 新しくキープしたものほど上に
+  keptEl.replaceChildren(...kept.map(card))
+  wordsEl.replaceChildren(...recent.map((w, i) => chip(w, i < HOTKEY_SLOTS ? i + 1 : null, () => keepWord(w.text))))
+  // 小さい表示: 直近の言葉3つと、最後にキープした言葉だけ
+  miniWordsEl.replaceChildren(...recent.slice(0, MINI_SLOTS).map((w, i) => chip(w, i + 1, () => keepWord(w.text))))
+  miniKeptEl.replaceChildren(...kept.slice(0, 1).map(card))
 }
 
 /** キープした言葉。意味が届いたら下に出す */

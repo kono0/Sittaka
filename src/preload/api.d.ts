@@ -66,13 +66,16 @@ declare global {
       save(entry: WordbookEntry): Promise<void>
       remove(word: string): Promise<void>
     }
-    /** パネルの幅を広げる（検証タブ用） */
     panel: {
+      /** パネルの幅を広げる（検証タブ用） */
       setWide(wide: boolean): Promise<void>
+      /** 縦長のパネル（full）と、画面の端の小さな帯（mini）を切り替える */
+      setMode(mode: 'full' | 'mini'): Promise<void>
     }
-    /** 全体ショートカット（Ctrl+Alt+数字） */
+    /** 全体ショートカット（Ctrl+Alt+数字・Ctrl+Alt+M） */
     hotkeys: {
       onKeep(handler: (n: number) => void): void
+      onToggleMode(handler: () => void): void
     }
   }
 }
