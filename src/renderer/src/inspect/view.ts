@@ -272,7 +272,7 @@ export class Inspector {
     const blob = new Blob([JSON.stringify([...this.traces].reverse(), null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `talking-word-trace-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+    a.download = `sittaka-trace-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
     a.click()
     setTimeout(() => URL.revokeObjectURL(a.href), 1000)
   }

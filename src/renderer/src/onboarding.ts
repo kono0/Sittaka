@@ -72,7 +72,7 @@ export function showOnboarding({ micSelect, isRunning, onDone }: Options): void 
 
   function welcome(): Step {
     return {
-      title: 'Talking Word へようこそ',
+      title: 'Sittaka へようこそ',
       body: [
         p('通話の声を聞き取って、会話に出てきた専門用語やカタカナ語を、この画面の端にそっと並べます。'),
         list([

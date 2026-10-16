@@ -1,5 +1,5 @@
-appId: io.github.kono0.talkingword
-productName: Talking Word
+appId: io.github.kono0.sittaka
+productName: Sittaka
 directories:
   output: dist
   buildResources: resources
@@ -25,11 +25,11 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
-  artifactName: TalkingWord-Setup-${version}.${ext}
-  shortcutName: Talking Word
+  artifactName: Sittaka-Setup-${version}.${ext}
+  shortcutName: Sittaka
 mac:
   icon: resources/icon.png
 publish:
   provider: github
   owner: kono0
-  repo: Talking.word_Cheating_tool
+  repo: Sittaka

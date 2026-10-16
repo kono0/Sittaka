@@ -1,4 +1,4 @@
-# Talking.word_Cheating_tool
+# Sittaka
 
 相手にバレずに知ったかをできるよう助けるツール。
 
@@ -74,8 +74,8 @@ Whisper は短い発話でも30秒分の計算をする仕組みのため、内�
 3. PowerShell で次を実行する
 
    ```powershell
-   git clone https://github.com/kono0/Talking.word_Cheating_tool.git
-   cd Talking.word_Cheating_tool
+   git clone https://github.com/kono0/Sittaka.git
+   cd Sittaka
    git checkout claude/project-thread-u5pdnk
    npm install
    npm run dev
@@ -112,7 +112,7 @@ npm run dist       # Windows 用インストーラーを dist/ に作る（Windo
 ### 配布（リリース）
 
 1. `package.json` の `version` を上げてコミットする
-2. `git tag v0.2.0 && git push origin v0.2.0` のように、同じ番号のタグを push する
+2. GitHub の Actions タブで「Release」を選び「Run workflow」を押す（`package.json` と同じ番号のタグ、たとえば `v0.2.0` を push してもよい。番号が違うと止まる）
 3. GitHub Actions が Windows 用インストーラーを作り、Releases に下書きとして載せる
 4. Releases で下書きを確かめて「公開」にすると、ダウンロードできるようになり、入れている人のアプリも次の起動で自動アップデートする
 

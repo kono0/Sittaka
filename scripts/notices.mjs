@@ -30,7 +30,7 @@ for (const [id, name] of [...found].sort(([a], [b]) => a.localeCompare(b))) {
 
 const header = `# Third-party notices
 
-Talking Word includes the following software and data. Each is distributed under its own license.
+Sittaka includes the following software and data. Each is distributed under its own license.
 
 ## ReazonSpeech k2 v2 (speech recognition model, downloaded on first use)
 

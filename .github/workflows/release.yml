@@ -1,10 +1,12 @@
-# v0.2.0 のようなタグを push すると、Windows 用インストーラーを作って GitHub の Releases に下書きとして載せる。
+# v0.2.0 のようなタグを push するか、Actions の画面で「Run workflow」を押すと、
+# package.json の version で Windows 用インストーラーを作り、GitHub の Releases に下書きとして載せる。
 # 下書きを「公開」にすると、利用者のアプリが自動アップデートで拾う。
 name: Release
 
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -23,6 +25,22 @@ jobs:
       - run: npm test
       - run: npx electron-vite build
       - run: npm run notices
+      # 配る版の番号（package.json の version）と、Git のタグをそろえる。
+      # 手動で始めたときはここでタグを作るので、下書きがこのコミットに結びつく
+      # （GITHUB_TOKEN で push したタグではこのワークフローは再び動かない）。
+      - name: Match the tag to package.json
+        shell: bash
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            if [ "$GITHUB_REF_NAME" != "$tag" ]; then
+              echo "::error::タグ $GITHUB_REF_NAME が package.json の版 ($tag) と違います"
+              exit 1
+            fi
+          else
+            git tag "$tag" "$GITHUB_SHA"
+            git push origin "$tag"
+          fi
       - run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
